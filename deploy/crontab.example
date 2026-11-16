@@ -1,0 +1,17 @@
+# Регламентные задания портала ЭКРОС
+# Установка: sudo cp deploy/crontab.example /etc/cron.d/ecros-portal
+# ВАЖНО: в cron.d файлах действует формат «мин час день месяц день_недели пользователь команда»
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Синхронизация с Active Directory — каждый час (инкрементально)
+15 * * * * ecros . /opt/ecros-portal/.venv/bin/activate >/dev/null 2>&1; cd /opt/ecros-portal && .venv/bin/python manage.py ad_sync --incremental --quiet >> var/cron.log 2>&1
+
+# Полная синхронизация раз в неделю (ночь с воскресенья на понедельник), чтобы подхватить переименования и переводы
+30 2 * * 1 ecros cd /opt/ecros-portal && .venv/bin/python manage.py ad_sync >> var/cron.log 2>&1
+
+# Напоминания по отпускам — ежедневно в 09:00
+0 9 * * * ecros cd /opt/ecros-portal && .venv/bin/python manage.py vacation_reminders >> var/cron.log 2>&1
+
+# Резервная копия SQLite — ежедневно в 02:30 (для PostgreSQL используйте pg_dump)
+30 2 * * * ecros cd /opt/ecros-portal && cp var/db.sqlite3 var/backup-$(date +\%F).sqlite3 && find var -name 'backup-*.sqlite3' -mtime +14 -delete

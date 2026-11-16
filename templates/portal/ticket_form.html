@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Новая заявка — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="breadcrumbs">
+      <span><a href="{% url 'portal:tickets' %}">Заявки</a></span>
+      <span>новая</span>
+    </div>
+    <div class="page-head__title"><h1>Новая заявка</h1></div>
+    <div class="page-head__sub">Опишите проблему подробно — так её решат быстрее</div>
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="card">
+    <div class="card__body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="form-grid">
+          <div class="field">
+            <label class="label">Категория</label>
+            {{ form.category }}{{ form.category.errors }}
+          </div>
+          <div class="field">
+            <label class="label">Приоритет</label>
+            {{ form.priority }}{{ form.priority.errors }}
+          </div>
+          <div class="field field--full">
+            <label class="label">Тема</label>
+            {{ form.subject }}{{ form.subject.errors }}
+          </div>
+          <div class="field field--full">
+            <label class="label">Описание</label>
+            {{ form.description }}{{ form.description.errors }}
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn btn--primary" type="submit"><svg class="icon"><use href="#i-send"/></svg> Отправить заявку</button>
+          <a class="btn btn--ghost" href="{% url 'portal:tickets' %}">Отмена</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-info"/></svg>
+        <div class="card__title">Что указать в заявке</div>
+      </div>
+      <div class="card__body">
+        <ul class="prose" style="padding-left:18px;margin:0">
+          <li>Что именно не работает и где (кабинет, компьютер, система).</li>
+          <li>Когда началось и воспроизводится ли повторно.</li>
+          <li>Текст ошибки или скриншот через описание.</li>
+          <li>Насколько срочно (влияет ли на работу отдела).</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card--flat">
+      <div class="card__body">
+        <div class="hint-box">
+          По вопросам отпусков и кадровых документов используйте категорию «Кадры и документы» —
+          такие заявки попадают в отдел кадров.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

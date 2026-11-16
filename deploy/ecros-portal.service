@@ -1,0 +1,34 @@
+[Unit]
+Description=Корпоративный портал ЭКРОС (Django + Gunicorn)
+Documentation=file:/opt/ecros-portal/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ecros
+Group=ecros
+WorkingDirectory=/opt/ecros-portal
+Environment="DJANGO_SETTINGS_MODULE=config.settings"
+EnvironmentFile=-/opt/ecros-portal/.env
+ExecStart=/opt/ecros-portal/.venv/bin/gunicorn config.wsgi:application \
+    --bind 127.0.0.1:8000 \
+    --workers 3 \
+    --threads 2 \
+    --timeout 60 \
+    --access-logfile /opt/ecros-portal/var/access.log \
+    --error-logfile /opt/ecros-portal/var/error.log
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+# Ограничения безопасности
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/ecros-portal/var
+
+[Install]
+WantedBy=multi-user.target

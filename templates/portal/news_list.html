@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Новости — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Новости и объявления</h1></div>
+    <div class="page-head__sub">Официальные новости компании, изменения процессов и объявления служб</div>
+  </div>
+  <div class="page-head__actions">
+    <form method="get" class="row" style="gap:8px">
+      <select class="input" name="category" onchange="this.form.submit()" style="width:auto">
+        <option value="">Все рубрики</option>
+        {% for item in categories %}
+        <option value="{{ item.code }}" {% if category == item.code %}selected{% endif %}>{{ item.name }} ({{ item.total }})</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% if can_edit %}
+    <a href="{% url 'portal:news_new' %}" class="btn btn--primary"><svg class="icon"><use href="#i-plus"/></svg> Новая новость</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid grid--3">
+  {% for post in posts %}
+  <article class="card">
+    <div class="card__body">
+      <div class="row mb-1">
+        {% if post.category %}<span class="badge" style="border-left:3px solid {{ post.category.color }}">{{ post.category.name }}</span>{% endif %}
+        {% if post.is_pinned %}<span class="badge badge--primary">закреплено</span>{% endif %}
+      </div>
+      <h2 style="font-size:16px;line-height:1.35"><a href="{{ post.get_absolute_url }}" style="color:inherit">{{ post.title }}</a></h2>
+      <p class="soft text-sm mt-1">{{ post.short_text|truncatechars:180 }}</p>
+    </div>
+    <div class="card__footer row row--between">
+      <span class="muted text-sm">{{ post.published_at|ru_date }}{% if post.author %} · {{ post.author.short_name }}{% endif %}</span>
+      <a href="{{ post.get_absolute_url }}" class="btn btn--sm btn--ghost">Читать</a>
+    </div>
+  </article>
+  {% empty %}
+  <div class="card" style="grid-column:1/-1">
+    <div class="empty">
+      <svg class="icon empty__icon"><use href="#i-newspaper"/></svg>
+      <div class="empty__title">Новостей нет</div>
+      <div class="text-sm">Опубликуйте первую новость, чтобы сотрудники видели объявления на главной.</div>
+      {% if can_edit %}<a href="{% url 'portal:news_new' %}" class="btn btn--primary mt-2">Добавить новость</a>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if page_obj.has_other_pages %}{% include "partials/pagination.html" %}{% endif %}
+{% endblock %}

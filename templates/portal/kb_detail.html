@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}{{ article.title }} — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="breadcrumbs">
+      <span><a href="{% url 'portal:kb_list' %}">База знаний</a></span>
+      {% if article.category %}<span><a href="{% url 'portal:kb_list' %}?category={{ article.category.code }}">{{ article.category.name }}</a></span>{% endif %}
+    </div>
+    <div class="page-head__title"><h1 style="max-width:860px">{{ article.title }}</h1></div>
+    <div class="page-head__sub">
+      Обновлено {{ article.updated_at|ru_datetime }}{% if article.author %} · {{ article.author.full_name }}{% endif %} · {{ article.views_count }} просмотров
+    </div>
+  </div>
+  <div class="page-head__actions">
+    {% if can_edit %}<a href="{% url 'portal:kb_edit' article.pk %}" class="btn"><svg class="icon"><use href="#i-edit"/></svg> Редактировать</a>{% endif %}
+    <button class="btn btn--ghost" onclick="window.print()"><svg class="icon"><use href="#i-print"/></svg></button>
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="card">
+    <div class="card__body">
+      {% if article.summary %}<p class="soft" style="font-size:15.5px;border-left:3px solid var(--primary);padding-left:14px">{{ article.summary }}</p>{% endif %}
+      <div class="prose">{{ article.body|markdown }}</div>
+      {% if article.tag_list %}
+      <div class="divider"></div>
+      <div class="chip-list">
+        {% for tag in article.tag_list %}<span class="badge">{{ tag }}</span>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-book"/></svg>
+        <div class="card__title">В этом разделе</div>
+      </div>
+      <div class="card__body card__body--flush">
+        {% for item in related %}
+        <a href="{{ item.get_absolute_url }}" class="row" style="padding:10px 16px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none">
+          <div style="flex:1;min-width:0">
+            <div class="person__name">{{ item.title|truncatechars:52 }}</div>
+            <div class="person__meta">{{ item.updated_at|ru_date }}</div>
+          </div>
+        </a>
+        {% empty %}
+        <div class="empty" style="padding:20px 16px"><div class="text-sm">Других статей в разделе нет</div></div>
+        {% endfor %}
+      </div>
+    </div>
+    <a href="{% url 'portal:kb_list' %}" class="btn btn--ghost btn--block">← Все статьи</a>
+  </div>
+</div>
+{% endblock %}

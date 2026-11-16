@@ -1,0 +1,25 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# --- локальные данные и секреты ---
+var/
+.env
+*.sqlite3
+*.log
+
+# --- служебное окружение разработки ---
+.bootstrap/
+node_modules/
+
+# --- статика (собирается collectstatic) ---
+staticfiles/
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+.DS_Store

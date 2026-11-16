@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Календарь отпусков — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>{{ month_name }} {{ year }}</h1></div>
+    <div class="page-head__sub">Кто из сотрудников в отпуске — по согласованным заявлениям</div>
+  </div>
+  <div class="page-head__actions">
+    <a class="btn" href="{% query_with year=prev.year month=prev.month %}">
+      <svg class="icon"><use href="#i-chevron-left"/></svg> {{ prev|ru_date:False }}
+    </a>
+    <a class="btn" href="{% url 'vacations:calendar' %}">Сегодня</a>
+    <a class="btn" href="{% query_with year=next.year month=next.month %}">
+      {{ next|ru_date:False }} <svg class="icon"><use href="#i-chevron-right"/></svg>
+    </a>
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="card">
+    <div class="card__body card__body--flush">
+      <table class="calendar">
+        <thead>
+          <tr>
+            <th>Пн</th><th>Вт</th><th>Ср</th><th>Чт</th><th>Пт</th><th>Сб</th><th>Вс</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for week in grid %}
+          <tr>
+            {% for day in week %}
+            <td class="{% if not day.in_month %}other-month{% endif %} {% if day.weekend %}weekend{% endif %} {% if day.is_today %}today{% endif %}">
+              <span class="cal-day">{{ day.date|date:"j" }}</span>
+              {% if day.holiday %}<span class="cal-holiday">{{ day.holiday.name|truncatechars:22 }}</span>{% endif %}
+              {% for entry in day.entries %}
+              <a class="cal-entry" href="{% url 'vacations:request_detail' entry.pk %}"
+                 style="background:{{ entry.vacation_type.color }}24;border-left:2px solid {{ entry.vacation_type.color }};color:#10203b"
+                 title="{{ entry.employee.full_name }} · {{ entry.vacation_type.name }} · {{ entry.start_date|ru_date }}–{{ entry.end_date|ru_date }}">
+                {{ entry.employee.short_name }}
+              </a>
+              {% endfor %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-users"/></svg>
+        <div>
+          <div class="card__title">В отпуске сегодня</div>
+          <div class="card__subtitle">{{ on_vacation_today|length }} человек</div>
+        </div>
+      </div>
+      <div class="card__body card__body--flush">
+        {% for item in on_vacation_today %}
+        <div class="row" style="padding:10px 16px;border-bottom:1px solid var(--border)">
+          <span class="{{ item.employee|avatar_class }} avatar--sm">{{ item.employee|initials }}</span>
+          <div style="flex:1;min-width:0">
+            <div class="person__name">{{ item.employee.short_name }}</div>
+            <div class="person__meta">{{ item.employee.department.name|default:"—" }}</div>
+          </div>
+          <div class="right">
+            <div class="text-sm">до {{ item.end_date|ru_date:False }}</div>
+            <span class="muted text-sm">{{ item.vacation_type.name|truncatechars:16 }}</span>
+          </div>
+        </div>
+        {% empty %}
+        <div class="empty" style="padding:24px 16px">
+          <div class="empty__title">Все на рабочих местах</div>
+          <div class="text-sm">Сегодня согласованных отпусков нет.</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-info"/></svg>
+        <div class="card__title">Легенда</div>
+      </div>
+      <div class="card__body">
+        <div class="chip-list">
+          {% for type in vacation_types %}
+          <span class="badge" style="border-left:3px solid {{ type.color }}">{{ type.name }}</span>
+          {% endfor %}
+        </div>
+        <div class="divider"></div>
+        <p class="muted text-sm" style="margin:0">
+          В календаре отображаются только согласованные отпуска. Заявления на согласовании видны в разделе
+          <a href="{% url 'vacations:request_list' %}">Все заявления</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

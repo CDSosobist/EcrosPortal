@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Оргструктура — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Оргструктура компании</h1></div>
+    <div class="page-head__sub">{{ total_departments }} подразделений · {{ total_staff }} сотрудников</div>
+  </div>
+  <div class="page-head__actions">
+    <a href="{% url 'portal:directory' %}" class="btn"><svg class="icon"><use href="#i-users"/></svg> Справочник</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card__body">
+    {% if tree %}
+    <ul style="list-style:none;margin:0;padding:0">
+      {% for node in tree %}
+        {% include "portal/_org_node.html" with node=node %}
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty">
+      <svg class="icon empty__icon"><use href="#i-sitemap"/></svg>
+      <div class="empty__title">Структура не загружена</div>
+      <div class="text-sm">Выполните синхронизацию с Active Directory — подразделения построятся по контейнерам OU.</div>
+      {% if is_portal_admin %}<a href="{% url 'accounts:manage_sync' %}" class="btn btn--primary mt-2">Открыть синхронизацию</a>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

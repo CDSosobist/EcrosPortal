@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}График отпусков {{ year }} — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title">
+      <h1>График отпусков {{ year }}</h1>
+      {% if period %}
+      <span class="badge badge--{{ period.status|status_badge }}">{{ period.get_status_display }}</span>
+      {% endif %}
+    </div>
+    <div class="page-head__sub">
+      {{ rows_total }} сотрудников · согласованные отпуска попадают в график автоматически
+      {% if period.published_at %} · утверждён {{ period.published_at|ru_date }}{% endif %}
+    </div>
+  </div>
+  <div class="page-head__actions">
+    <a href="{% url 'vacations:schedule_export' year %}{% if department %}?department={{ department.pk }}{% endif %}" class="btn">
+      <svg class="icon"><use href="#i-download"/></svg> Выгрузить CSV
+    </a>
+    <button class="btn" onclick="window.print()"><svg class="icon"><use href="#i-print"/></svg> Печать</button>
+    {% if can_manage %}
+    <a href="{% url 'vacations:manage_periods' %}" class="btn btn--ghost"><svg class="icon"><use href="#i-settings"/></svg> Периоды</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-2">
+  <div class="card__body">
+    <form method="get" class="filters">
+      <div class="field">
+        <label class="label">Год</label>
+        <select class="input" name="year" onchange="this.form.submit()">
+          {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Подразделение</label>
+        <select class="input" name="department" onchange="this.form.submit()">
+          <option value="">Все подразделения</option>
+          {% for dept in departments %}
+          <option value="{{ dept.pk }}" {% if department and department.pk == dept.pk %}selected{% endif %}>{{ dept.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" style="min-width:auto">
+        <label class="checkbox" style="height:38px">
+          <input type="checkbox" name="all" value="1" {% if show_all %}checked{% endif %} onchange="this.form.submit()">
+          Показывать всех сотрудников
+        </label>
+      </div>
+      <div class="field ml-auto" style="min-width:auto">
+        <span class="chip-list">
+          {% for type in types %}
+          <span class="badge" style="border-left:3px solid {{ type.color }}">{{ type.name }}</span>
+          {% endfor %}
+        </span>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table schedule">
+      <thead>
+        <tr>
+          <th class="schedule__name">Сотрудник</th>
+          {% for month in month_short %}<th style="width:62px">{{ month }}</th>{% endfor %}
+          <th style="width:56px">Дней</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in grouped %}
+        <tr class="schedule__dept">
+          <td colspan="14">
+            {{ group.department }} <span class="muted" style="font-weight:500">· {{ group.rows|length }} сотр. · {{ group.total_days }} дн. отпусков</span>
+          </td>
+        </tr>
+        {% for row in group.rows %}
+        <tr>
+          <td class="schedule__name">
+            <a href="{% url 'portal:employee_detail' row.employee.pk %}" class="person" style="text-decoration:none;color:inherit">
+              <span class="{{ row.employee|avatar_class }} avatar--sm">{{ row.employee|initials }}</span>
+              <span class="person__text">
+                <span class="person__name">{{ row.employee.short_name }}</span>
+                <span class="person__meta">{{ row.employee.job_title|truncatechars:28 }}</span>
+              </span>
+            </a>
+          </td>
+          {% for cell in row.months %}
+          <td class="schedule__cell">
+            {% for seg in cell %}
+            <a class="seg" href="{% url 'vacations:request_detail' seg.request.pk %}"
+               style="background:{{ seg.color }}1f;border-left-color:{{ seg.color }};color:#10203b"
+               title="{{ seg.type }}: {{ seg.start|ru_date }} — {{ seg.end|ru_date }} ({{ seg.days }} дн.)">{{ seg.start_day }}–{{ seg.end_day }}</a>
+            {% endfor %}
+          </td>
+          {% endfor %}
+          <td class="schedule__days">{{ row.days }}</td>
+        </tr>
+        {% endfor %}
+        {% empty %}
+        <tr>
+          <td colspan="14">
+            <div class="empty">
+              <svg class="icon empty__icon"><use href="#i-calendar"/></svg>
+              <div class="empty__title">Согласованных отпусков на {{ year }} год пока нет</div>
+              <div class="text-sm">Как только руководители согласуют заявления, они появятся в графике.</div>
+              <a href="{% url 'vacations:request_new' %}" class="btn btn--primary mt-2">Оформить отпуск</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="muted text-sm mt-2">
+  В ячейках указаны числа месяца, в которые сотрудник находится в отпуске. Наведите курсор, чтобы увидеть точные даты и вид отпуска.
+  Праздничные дни не включаются в отпуск и отображаются в календаре.
+</p>
+{% endblock %}

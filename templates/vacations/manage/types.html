@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Виды отпусков — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Виды отпусков</h1></div>
+    <div class="page-head__sub">От видов зависит расчёт дней, необходимость согласования и цвет в календаре</div>
+  </div>
+</div>
+
+{% include "vacations/manage/_tabs.html" %}
+
+<div class="grid grid--sidebar">
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-calendar"/></svg>
+        <div class="card__title">Настроенные виды</div>
+        <div class="card__actions">
+          <button class="btn btn--primary btn--sm" type="submit"><svg class="icon"><use href="#i-check"/></svg> Сохранить</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table table--compact">
+          <thead>
+            <tr>
+              <th style="width:120px">Цвет</th>
+              <th>Название</th>
+              <th style="width:90px">Дней/год</th>
+              <th style="width:100px">Списывает</th>
+              <th style="width:100px">Согласуется</th>
+              <th style="width:80px">Активен</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for type in types %}
+            <tr>
+              <td><input class="input" style="padding:2px;height:34px" type="color" name="color_{{ type.pk }}" value="{{ type.color }}"></td>
+              <td>
+                <input class="input" style="padding:5px 8px" type="text" name="name_{{ type.pk }}" value="{{ type.name }}">
+                <div class="muted text-sm" style="padding-left:2px">код: {{ type.code }}</div>
+              </td>
+              <td><input class="input" style="padding:5px 8px;width:74px" type="number" name="default_days_{{ type.pk }}" min="0" max="365" value="{{ type.default_days }}"></td>
+              <td class="center"><input type="checkbox" name="consumes_{{ type.pk }}" {% if type.consumes_balance %}checked{% endif %}></td>
+              <td class="center"><input type="checkbox" name="approval_{{ type.pk }}" {% if type.requires_approval %}checked{% endif %}></td>
+              <td class="center"><input type="checkbox" name="active_{{ type.pk }}" {% if type.is_active %}checked{% endif %}></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6"><div class="empty"><div class="empty__title">Виды отпусков не настроены</div></div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </form>
+
+  <div class="card" style="align-self:flex-start">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-plus"/></svg>
+      <div class="card__title">Добавить вид</div>
+    </div>
+    <div class="card__body">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <div class="field">
+          <label class="label">Название</label>
+          {{ form.name }}
+        </div>
+        <div class="field">
+          <label class="label">Код</label>
+          {{ form.code }}
+          <div class="help">Латиницей, без пробелов: study_leave</div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="label">Дней в год</label>
+            {{ form.default_days }}
+          </div>
+          <div class="field">
+            <label class="label">Цвет</label>
+            {{ form.color }}
+          </div>
+        </div>
+        <div class="field">
+          <label class="checkbox">{{ form.consumes_balance }} Списывает дни с баланса</label>
+        </div>
+        <div class="field">
+          <label class="checkbox">{{ form.requires_approval }} Требует согласования</label>
+        </div>
+        <div class="field">
+          <label class="checkbox">{{ form.is_active }} Активен</label>
+        </div>
+        <button class="btn btn--primary btn--block" type="submit">Добавить</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

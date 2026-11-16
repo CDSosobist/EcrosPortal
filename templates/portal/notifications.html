@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Уведомления — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Уведомления</h1></div>
+    <div class="page-head__sub">Согласования, статусы заявок и системные сообщения</div>
+  </div>
+  <div class="page-head__actions">
+    <a href="{% query_with unread='1' %}" class="btn {% if unread_only %}btn--primary{% endif %}">Только непрочитанные</a>
+    {% if unread_only %}<a href="{% url 'portal:notifications' %}" class="btn btn--ghost">Все</a>{% endif %}
+    <form method="post" action="{% url 'portal:notifications_read' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button class="btn" type="submit"><svg class="icon"><use href="#i-check"/></svg> Отметить всё прочитанным</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card__body card__body--flush">
+    {% for item in items %}
+    <div class="row" data-notification style="padding:13px 16px;border-bottom:1px solid var(--border);align-items:flex-start;{% if not item.is_read %}background:var(--primary-soft){% endif %}">
+      <span class="tile__icon" style="width:32px;height:32px;flex:0 0 32px">
+        <svg class="icon" style="width:15px;height:15px">
+          <use href="#i-{% if item.kind == 'approval' %}check{% elif item.kind == 'vacation' %}calendar{% elif item.kind == 'ticket' %}help{% elif item.kind == 'news' %}newspaper{% else %}bell{% endif %}"/>
+        </svg>
+      </span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:{% if item.is_read %}500{% else %}650{% endif %}">
+          {% if item.url %}<a href="{{ item.url }}" style="color:inherit">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+        </div>
+        {% if item.body %}<div class="soft text-sm mt-1">{{ item.body|truncatechars:220 }}</div>{% endif %}
+        <div class="muted text-sm mt-1">{{ item.created_at|ru_datetime }}{% if item.actor %} · {{ item.actor.short_name }}{% endif %}</div>
+      </div>
+      {% if not item.is_read %}
+      <button class="btn btn--sm btn--ghost" data-mark-read="{{ item.pk }}" data-url="{% url 'portal:notifications_read' %}" title="Отметить прочитанным">
+        <svg class="icon"><use href="#i-check"/></svg>
+      </button>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="empty">
+      <svg class="icon empty__icon"><use href="#i-bell"/></svg>
+      <div class="empty__title">Уведомлений нет</div>
+      <div class="text-sm">Здесь появятся сообщения о согласовании отпусков и ответах по заявкам.</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if page_obj.has_other_pages %}<div class="card__footer">{% include "partials/pagination.html" %}</div>{% endif %}
+</div>
+{% endblock %}

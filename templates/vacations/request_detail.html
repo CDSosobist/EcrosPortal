@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Заявление {{ request_obj.number }} — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="breadcrumbs">
+      <span><a href="{% url 'vacations:index' %}">Отпуска</a></span>
+      <span><a href="{% url 'vacations:request_list' %}">Заявления</a></span>
+      <span>{{ request_obj.number }}</span>
+    </div>
+    <div class="page-head__title">
+      <h1>Заявление на отпуск</h1>
+      <span class="badge badge--{{ request_obj.status|status_badge }}" style="font-size:12.5px">{{ request_obj.get_status_display }}</span>
+    </div>
+    <div class="page-head__sub">
+      {{ request_obj.employee.full_name }} · {{ request_obj.vacation_type.name }} ·
+      {{ request_obj.start_date|ru_date }} — {{ request_obj.end_date|ru_date }} · {{ request_obj.days_count|days_word }}
+    </div>
+  </div>
+  <div class="page-head__actions">
+    {% if is_owner and request_obj.is_editable %}
+    <a href="{% url 'vacations:request_edit' request_obj.pk %}" class="btn">
+      <svg class="icon"><use href="#i-edit"/></svg> Исправить
+    </a>
+    {% endif %}
+    {% if request_obj.status == 'draft' %}
+    <form method="post" action="{% url 'vacations:request_submit' request_obj.pk %}">
+      {% csrf_token %}
+      <button class="btn btn--primary" type="submit"><svg class="icon"><use href="#i-send"/></svg> Отправить</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-sitemap"/></svg>
+        <div>
+          <div class="card__title">Маршрут согласования</div>
+          <div class="card__subtitle">{{ request_obj.chain_template.name|default:"без маршрута" }} · пройдено {{ request_obj.route_done }} из {{ request_obj.route_total }}</div>
+        </div>
+        <div class="card__actions">
+          <div class="progress" style="width:110px"><div class="progress__bar" style="width:{{ request_obj.route_progress }}%"></div></div>
+        </div>
+      </div>
+      <div class="card__body">
+        {% if steps %}
+        <ol class="timeline">
+          {% for step in steps %}
+          <li class="timeline__item">
+            <span class="timeline__dot
+              {% if step.status == 'approved' %}timeline__dot--done
+              {% elif step.status == 'rejected' %}timeline__dot--rejected
+              {% elif step.status == 'skipped' or step.status == 'cancelled' %}timeline__dot--skipped
+              {% else %}timeline__dot--current{% endif %}">
+              {% if step.status == 'approved' %}<svg class="icon"><use href="#i-check"/></svg>
+              {% elif step.status == 'rejected' %}<svg class="icon"><use href="#i-x"/></svg>
+              {% else %}{{ step.order }}{% endif %}
+            </span>
+            <div class="row row--between">
+              <div>
+                <div class="timeline__title">{{ step.title }}</div>
+                <div class="timeline__meta">
+                  {% if step.approver %}
+                    {{ step.approver.full_name }}{% if step.approver.job_title %} · {{ step.approver.job_title }}{% endif %}
+                  {% else %}
+                    согласующий не определён
+                  {% endif %}
+                </div>
+              </div>
+              <div class="right">
+                <span class="badge badge--{% if step.status == 'approved' %}success{% elif step.status == 'rejected' %}danger{% elif step.status == 'pending' %}warn{% else %}muted{% endif %}">
+                  {{ step.get_status_display }}
+                </span>
+                {% if step.decided_at %}<div class="muted text-sm mt-1">{{ step.decided_at|ru_datetime }}</div>{% endif %}
+              </div>
+            </div>
+            {% if step.comment %}
+            <div class="timeline__comment">{{ step.comment }}</div>
+            {% endif %}
+
+            {% if current and current.pk == step.pk and can_decide %}
+            <div class="mt-2 row">
+              <button class="btn btn--success btn--sm" type="button" data-open-dialog="approve-dialog">
+                <svg class="icon"><use href="#i-check"/></svg> Согласовать
+              </button>
+              <button class="btn btn--danger btn--sm" type="button" data-open-dialog="reject-dialog">
+                <svg class="icon"><use href="#i-x"/></svg> Отклонить
+              </button>
+            </div>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+        {% else %}
+        <div class="empty" style="padding:20px 0">
+          <div class="empty__title">Маршрут не сформирован</div>
+          <div class="text-sm">Согласование не требуется для этого вида отпуска или заявление ещё не отправлено.</div>
+        </div>
+        {% endif %}
+      </div>
+      {% if request_obj.decision_comment %}
+      <div class="card__footer">
+        <div class="text-sm"><strong>Решение:</strong> {{ request_obj.decision_comment }}</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-file"/></svg>
+        <div class="card__title">Детали заявления</div>
+      </div>
+      <div class="card__body">
+        <dl class="kv">
+          <dt>Номер</dt><dd>{{ request_obj.number }}</dd>
+          <dt>Сотрудник</dt><dd><a href="{% url 'portal:employee_detail' request_obj.employee.pk %}">{{ request_obj.employee.full_name }}</a></dd>
+          <dt>Подразделение</dt><dd>{{ request_obj.employee.department.name|default:"—" }}</dd>
+          <dt>Должность</dt><dd>{{ request_obj.employee.job_title|default:"—" }}</dd>
+          <dt>Вид отпуска</dt><dd>{{ request_obj.vacation_type.name }}</dd>
+          <dt>Период</dt><dd>{{ request_obj.start_date|ru_date }} — {{ request_obj.end_date|ru_date }}</dd>
+          <dt>Календарных дней</dt><dd>{{ request_obj.days_count }}</dd>
+          <dt>Создано</dt><dd>{{ request_obj.created_at|ru_datetime }}</dd>
+          {% if request_obj.submitted_at %}<dt>Отправлено</dt><dd>{{ request_obj.submitted_at|ru_datetime }}</dd>{% endif %}
+          {% if request_obj.decided_at %}<dt>Решение</dt><dd>{{ request_obj.decided_at|ru_datetime }}</dd>{% endif %}
+        </dl>
+        {% if request_obj.employee_comment %}
+        <div class="divider"></div>
+        <div class="text-sm"><strong>Комментарий сотрудника:</strong><div class="soft mt-1">{{ request_obj.employee_comment|linebreaksbr }}</div></div>
+        {% endif %}
+      </div>
+      {% if is_owner and request_obj.status in 'pending,approved' %}
+      <div class="card__footer">
+        <form method="post" action="{% url 'vacations:request_cancel' request_obj.pk %}" data-confirm="Отозвать заявление?">
+          {% csrf_token %}
+          <input class="input mb-1" name="reason" placeholder="Причина отзыва (необязательно)">
+          <button class="btn btn--danger btn--sm" type="submit"><svg class="icon"><use href="#i-x"/></svg> Отозвать заявление</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if overlaps %}
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-users"/></svg>
+        <div class="card__title">Коллеги в отпуске в эти же дни</div>
+      </div>
+      <div class="card__body">
+        {% for item in overlaps %}
+        <div class="row" style="padding:6px 0">
+          <span class="{{ item.employee|avatar_class }} avatar--sm">{{ item.employee|initials }}</span>
+          <div style="flex:1;min-width:0">
+            <div class="person__name">{{ item.employee.short_name }}</div>
+            <div class="person__meta">{{ item.start_date|ru_date:False }} — {{ item.end_date|ru_date:False }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-trend"/></svg>
+        <div class="card__title">Баланс сотрудника</div>
+      </div>
+      <div class="card__body">
+        <div class="row row--between mb-1">
+          <span class="muted text-sm">Доступно в {{ request_obj.period.year }}</span>
+          <strong>{{ summary.available }} из {{ summary.total }}</strong>
+        </div>
+        <div class="progress"><div class="progress__bar progress__bar--success" style="width:{% widthratio summary.available summary.total 100 %}%"></div></div>
+        <div class="kv mt-2">
+          <dt>Использовано</dt><dd>{{ summary.used }} дн.</dd>
+          <dt>На согласовании</dt><dd>{{ summary.pending }} дн.</dd>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-clock"/></svg>
+        <div class="card__title">История действий</div>
+      </div>
+      <div class="card__body card__body--flush">
+        {% for event in audit %}
+        <div style="padding:10px 16px;border-bottom:1px solid var(--border)">
+          <div class="text-sm" style="font-weight:600">{{ event.action }}</div>
+          <div class="muted text-sm">{{ event.created_at|ru_datetime }}{% if event.actor_name %} · {{ event.actor_name }}{% endif %}</div>
+        </div>
+        {% empty %}
+        <div class="empty" style="padding:18px 16px"><div class="text-sm">Событий пока нет</div></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if can_decide %}
+<dialog id="approve-dialog" style="border:none;border-radius:14px;padding:0;max-width:460px;width:92vw;box-shadow:var(--shadow)">
+  <form method="post" action="{% url 'vacations:step_approve' current.pk %}">
+    {% csrf_token %}
+    <div style="padding:18px 20px">
+      <h3>Согласовать отпуск</h3>
+      <p class="muted text-sm mt-1">{{ request_obj.employee.full_name }} · {{ request_obj.start_date|ru_date }} — {{ request_obj.end_date|ru_date }}</p>
+      <div class="field mt-2">
+        <label class="label">Комментарий (необязательно)</label>
+        <textarea class="input" name="comment" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="row" style="padding:14px 20px;border-top:1px solid var(--border);justify-content:flex-end">
+      <button type="button" class="btn btn--ghost" data-close-dialog>Отмена</button>
+      <button type="submit" class="btn btn--success">Согласовать</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="reject-dialog" style="border:none;border-radius:14px;padding:0;max-width:460px;width:92vw;box-shadow:var(--shadow)">
+  <form method="post" action="{% url 'vacations:step_reject' current.pk %}">
+    {% csrf_token %}
+    <div style="padding:18px 20px">
+      <h3>Отклонить заявление</h3>
+      <p class="muted text-sm mt-1">{{ request_obj.employee.full_name }} · {{ request_obj.start_date|ru_date }} — {{ request_obj.end_date|ru_date }}</p>
+      <div class="field mt-2">
+        <label class="label">Причина отказа <span class="muted">(обязательно)</span></label>
+        <textarea class="input" name="comment" rows="3" required placeholder="Например: в эти даты не хватает сотрудников в отделе"></textarea>
+      </div>
+    </div>
+    <div class="row" style="padding:14px 20px;border-top:1px solid var(--border);justify-content:flex-end">
+      <button type="button" class="btn btn--ghost" data-close-dialog>Отмена</button>
+      <button type="submit" class="btn btn--danger">Отклонить</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+{% endblock %}

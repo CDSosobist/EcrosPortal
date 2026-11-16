@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}{{ kind }} — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="breadcrumbs">
+      <span><a href="{% url 'portal:dashboard' %}">Главная</a></span>
+      <span>{% if instance %}редактирование{% else %}создание{% endif %}</span>
+    </div>
+    <div class="page-head__title"><h1>{% if instance %}Редактирование: {{ kind }}{% else %}Новая запись: {{ kind }}{% endif %}</h1></div>
+    <div class="page-head__sub">Поддерживается лёгкий markdown: # заголовок, **жирный**, *курсив*, списки, [ссылка](https://…), &gt; цитата</div>
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="card">
+    <div class="card__body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="field">
+          <label class="label">Заголовок</label>
+          {{ form.title }}{{ form.title.errors }}
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="label">Раздел</label>
+            {{ form.category }}{{ form.category.errors }}
+          </div>
+          <div class="field">
+            <label class="label">Краткое описание</label>
+            {{ form.summary }}{{ form.summary.errors }}
+          </div>
+        </div>
+        {% if form.tags %}
+        <div class="field">
+          <label class="label">Теги</label>
+          {{ form.tags }}{{ form.tags.errors }}
+        </div>
+        {% endif %}
+        <div class="field">
+          <label class="label">Текст</label>
+          {{ form.body }}{{ form.body.errors }}
+        </div>
+        <div class="row">
+          <label class="checkbox">{{ form.is_published }} Опубликовано</label>
+          {% if form.is_pinned %}<label class="checkbox">{{ form.is_pinned }} Закрепить на главной</label>{% endif %}
+        </div>
+        <div class="row mt-2">
+          <button class="btn btn--primary" type="submit"><svg class="icon"><use href="#i-check"/></svg> Сохранить</button>
+          <a class="btn btn--ghost" href="{% url 'portal:dashboard' %}">Отмена</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card card--flat" style="align-self:flex-start">
+    <div class="card__body">
+      <div class="hint-box">
+        <strong>Правила разметки.</strong><br>
+        <code>## Заголовок</code> — подзаголовок раздела<br>
+        <code>**важно**</code> — жирный текст<br>
+        <code>- пункт</code> — маркированный список<br>
+        <code>1. пункт</code> — нумерованный список<br>
+        <code>[текст](https://…)</code> — ссылка<br>
+        <code>&gt; цитата</code> — выделенная врезка
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

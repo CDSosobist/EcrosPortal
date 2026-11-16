@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Права на отпуск — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Права на отпуск — {{ year }}</h1></div>
+    <div class="page-head__sub">
+      Положенные дни, перенос с прошлого года и текущий остаток. Изменения сохраняются одной кнопкой.
+      {% if period %}Период: {{ period.get_status_display }}{% endif %}
+    </div>
+  </div>
+  <div class="page-head__actions">
+    <form method="get" class="row" style="gap:8px">
+      <select class="input" name="year" onchange="this.form.submit()" style="width:auto">
+        {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+      <select class="input" name="department" onchange="this.form.submit()" style="width:auto">
+        <option value="">Все подразделения</option>
+        {% for dept in departments %}
+        <option value="{{ dept.pk }}" {% if department_param == dept.pk|stringformat:'s' %}selected{% endif %}>{{ dept.name }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+
+{% include "vacations/manage/_tabs.html" %}
+
+<form method="post">
+  {% csrf_token %}
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-users"/></svg>
+      <div class="card__title">Сотрудники ({{ rows|length }})</div>
+      <div class="card__actions">
+        <a href="{% url 'vacations:manage_periods' %}" class="btn btn--sm btn--ghost">Оформить права всем</a>
+        <button class="btn btn--primary btn--sm" type="submit">
+          <svg class="icon"><use href="#i-check"/></svg> Сохранить изменения
+        </button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table table--compact">
+        <thead>
+          <tr>
+            <th>Сотрудник</th>
+            <th>Подразделение</th>
+            <th style="width:110px">Положено</th>
+            <th style="width:110px">Перенесено</th>
+            <th class="table__num">Использовано</th>
+            <th class="table__num">В заявках</th>
+            <th class="table__num">Остаток</th>
+            <th style="width:180px">Примечание</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>
+              <div class="person">
+                <span class="{{ row.employee|avatar_class }} avatar--sm">{{ row.employee|initials }}</span>
+                <span class="person__text">
+                  <span class="person__name">{{ row.employee.short_name }}</span>
+                  <span class="person__meta">{{ row.employee.job_title|truncatechars:24 }}</span>
+                </span>
+              </div>
+            </td>
+            <td class="text-sm soft">{{ row.employee.department.name|default:"—" }}</td>
+            <td>
+              {% if row.id %}
+              <input class="input" style="width:80px;padding:5px 8px" type="number" min="0" max="365"
+                     name="entitled_{{ row.id }}" value="{{ row.entitled }}">
+              {% else %}
+              <span class="muted text-sm">право не оформлено</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.id %}
+              <input class="input" style="width:80px;padding:5px 8px" type="number" min="0" max="365"
+                     name="carried_{{ row.id }}" value="{{ row.carried }}">
+              {% else %}—{% endif %}
+            </td>
+            <td class="table__num">{{ row.used }}</td>
+            <td class="table__num">{{ row.pending }}</td>
+            <td class="table__num">
+              <strong {% if row.available < 0 %}style="color:var(--danger)"{% endif %}>{{ row.available }}</strong>
+            </td>
+            <td>
+              {% if row.id %}
+              <input class="input" style="padding:5px 8px" type="text" name="note_{{ row.id }}" value="{{ row.note }}">
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8"><div class="empty"><div class="empty__title">Нет сотрудников</div></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</form>
+{% endblock %}

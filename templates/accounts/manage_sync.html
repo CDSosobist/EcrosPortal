@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Синхронизация с AD — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title">
+      <h1>Синхронизация с Active Directory</h1>
+      <span class="badge badge--{% if provider == 'mock' %}warn{% else %}info{% endif %}">{{ provider }}</span>
+    </div>
+    <div class="page-head__sub">Сотрудники, подразделения, руководители и роли портала обновляются из каталога домена</div>
+  </div>
+  <div class="page-head__actions">
+    <form method="post" class="row" style="gap:8px">
+      {% csrf_token %}
+      <button class="btn" type="submit" name="dry_run" value="1" title="Прогон без записи в базу">
+        <svg class="icon"><use href="#i-refresh"/></svg> Проверить (dry-run)
+      </button>
+      <button class="btn btn--primary" type="submit">
+        <svg class="icon"><use href="#i-database"/></svg> Синхронизировать сейчас
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    {% if health %}
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-{% if health.ok %}check{% else %}alert{% endif %}"/></svg>
+        <div>
+          <div class="card__title">Состояние подключения</div>
+          <div class="card__subtitle">{{ health.message }}</div>
+        </div>
+        <div class="card__actions">
+          <span class="badge badge--{% if health.ok %}success{% else %}danger{% endif %}">
+            {% if health.ok %}доступен{% else %}недоступен{% endif %}
+          </span>
+        </div>
+      </div>
+      {% if health.details %}
+      <div class="card__body">
+        <dl class="kv">
+          {% for key, value in health.details.items %}
+          <dt>{{ key }}</dt><dd>{{ value }}</dd>
+          {% endfor %}
+        </dl>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-clock"/></svg>
+        <div class="card__title">История синхронизаций</div>
+      </div>
+      <div class="table-wrap">
+        <table class="table table--compact">
+          <thead>
+            <tr>
+              <th>Начало</th>
+              <th>Режим</th>
+              <th>Статус</th>
+              <th class="table__num">Создано</th>
+              <th class="table__num">Обновл.</th>
+              <th class="table__num">Отключено</th>
+              <th>Кто</th>
+              <th>Итог</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for run in runs %}
+            <tr>
+              <td class="nowrap text-sm">{{ run.started_at|ru_datetime }}</td>
+              <td class="text-sm">{{ run.get_mode_display }}</td>
+              <td>
+                <span class="badge {% if run.status == 'success' %}badge--success{% elif run.status == 'failed' %}badge--danger{% elif run.status == 'partial' %}badge--warn{% else %}badge--info{% endif %}">
+                  {{ run.get_status_display }}
+                </span>
+              </td>
+              <td class="table__num">{{ run.counters.created|default:0 }}</td>
+              <td class="table__num">{{ run.counters.updated|default:0 }}</td>
+              <td class="table__num">{{ run.counters.deactivated|default:0 }}</td>
+              <td class="text-sm soft">{{ run.triggered_by.short_name|default:"система" }}</td>
+              <td class="text-sm soft">{{ run.message|default:"—"|truncatechars:60 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8"><div class="empty" style="padding:24px"><div class="empty__title">Синхронизаций ещё не было</div></div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if last_run and last_run.log_excerpt %}
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-file"/></svg>
+        <div class="card__title">Предупреждения последнего запуска</div>
+      </div>
+      <div class="card__body">
+        <pre class="text-sm" style="margin:0;white-space:pre-wrap;color:var(--text-soft)">{{ last_run.log_excerpt }}</pre>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-users"/></svg>
+        <div class="card__title">Группы AD (топ по численности)</div>
+        <div class="card__actions"><a href="{% url 'accounts:manage_roles' %}" class="btn btn--sm btn--ghost">Сопоставить роли</a></div>
+      </div>
+      <div class="card__body">
+        <div class="chip-list">
+          {% for group in ad_groups %}
+          <span class="badge">{{ group.name }} <span class="muted">· {{ group.member_count }}</span></span>
+          {% empty %}
+          <span class="muted text-sm">Группы не загружены — выполните синхронизацию.</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-trend"/></svg>
+        <div class="card__title">Данные портала</div>
+      </div>
+      <div class="card__body">
+        <div class="grid grid--2" style="gap:10px">
+          <div>
+            <div class="stat__label">Всего</div>
+            <div class="stat__value" style="font-size:22px">{{ stats.employees }}</div>
+          </div>
+          <div>
+            <div class="stat__label">Активных</div>
+            <div class="stat__value" style="font-size:22px">{{ stats.active }}</div>
+          </div>
+          <div>
+            <div class="stat__label">С подразделением</div>
+            <div class="stat__value" style="font-size:22px">{{ stats.departments }}</div>
+          </div>
+          <div>
+            <div class="stat__label">Нет в AD</div>
+            <div class="stat__value" style="font-size:22px;color:var(--warning)">{{ stats.missing_in_ad }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-settings"/></svg>
+        <div class="card__title">Параметры подключения</div>
+      </div>
+      <div class="card__body">
+        <dl class="kv" style="grid-template-columns:130px 1fr">
+          <dt>Сервер</dt><dd>{{ ad_settings.server }}</dd>
+          <dt>Порт / TLS</dt><dd>{{ ad_settings.port }}{% if ad_settings.ssl %} · LDAPS{% endif %}</dd>
+          <dt>Base DN</dt><dd class="text-sm">{{ ad_settings.base_dn }}</dd>
+          <dt>Фильтр</dt><dd class="text-sm" style="word-break:break-all">{{ ad_settings.user_filter }}</dd>
+          <dt>Сервисная УЗ</dt><dd class="text-sm">{{ ad_settings.bind_dn }}</dd>
+          <dt>Периодичность</dt><dd>каждые {{ ad_settings.sync_interval }} мин.</dd>
+        </dl>
+        <div class="hint-box mt-2">
+          Параметры задаются в файле <code>.env</code> (AD_SERVER, AD_BASE_DN, AD_BIND_DN, AD_BIND_PASSWORD и др.).
+          Перезапуск сервиса требуется только при изменении переменных окружения.
+        </div>
+      </div>
+    </div>
+
+    <div class="card card--flat">
+      <div class="card__body">
+        <div class="muted text-sm">
+          <strong>Что переносится из AD:</strong> ФИО, должность, подразделение (по контейнерам OU),
+          руководитель, телефоны, кабинет, табельный номер, группы (для ролей), признак отключённой учётной записи.
+          Уволенные (пропавшие из выдачи) деактивируются, история отпусков сохраняется.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

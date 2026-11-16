@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Все заявления — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Заявления на отпуск</h1></div>
+    <div class="page-head__sub">Найдено {{ total }} заявлений{% if is_hr or is_portal_admin %} по всей компании{% else %} — ваши и вашей команды{% endif %}</div>
+  </div>
+  <div class="page-head__actions">
+    <a href="{% url 'vacations:request_new' %}" class="btn btn--primary"><svg class="icon"><use href="#i-plus"/></svg> Новое заявление</a>
+  </div>
+</div>
+
+<div class="card mb-2">
+  <div class="card__body">
+    <form method="get" class="filters">
+      <div class="field">
+        <label class="label">Поиск</label>
+        <input class="input" type="search" name="q" value="{{ query }}" placeholder="Фамилия или логин">
+      </div>
+      <div class="field">
+        <label class="label">Статус</label>
+        <select class="input" name="status" onchange="this.form.submit()">
+          <option value="">Все статусы</option>
+          {% for value, label in statuses %}
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Год</label>
+        <select class="input" name="year" onchange="this.form.submit()">
+          <option value="">Все годы</option>
+          {% for y in years %}<option value="{{ y }}" {% if year == y|stringformat:'s' %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field" style="min-width:auto">
+        <button class="btn" type="submit"><svg class="icon"><use href="#i-search"/></svg> Найти</button>
+      </div>
+      {% if query or status or year %}
+      <div class="field" style="min-width:auto">
+        <a class="btn btn--ghost" href="{% url 'vacations:request_list' %}">Сбросить</a>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>№</th>
+          <th>Сотрудник</th>
+          <th>Период</th>
+          <th class="table__num">Дней</th>
+          <th>Статус</th>
+          <th>Согласующий</th>
+          <th>Подано</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in requests %}
+        <tr>
+          <td class="muted text-sm nowrap">{{ item.number }}</td>
+          <td>
+            <div class="person">
+              <span class="{{ item.employee|avatar_class }} avatar--sm">{{ item.employee|initials }}</span>
+              <span class="person__text">
+                <span class="person__name">{{ item.employee.short_name }}</span>
+                <span class="person__meta">{{ item.employee.department.name|default:"—" }}</span>
+              </span>
+            </div>
+          </td>
+          <td class="nowrap">{{ item.start_date|ru_date }} — {{ item.end_date|ru_date }}</td>
+          <td class="table__num">{{ item.days_count }}</td>
+          <td><span class="badge badge--{{ item.status|status_badge }}">{{ item.get_status_display }}</span></td>
+          <td class="text-sm soft">{{ item.current_step.approver.short_name|default:"—" }}</td>
+          <td class="text-sm muted nowrap">{{ item.submitted_at|ru_date|default:"—" }}</td>
+          <td class="right"><a href="{% url 'vacations:request_detail' item.pk %}" class="btn btn--sm btn--ghost">Открыть</a></td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8">
+            <div class="empty">
+              <svg class="icon empty__icon"><use href="#i-file"/></svg>
+              <div class="empty__title">Заявлений не найдено</div>
+              <div class="text-sm">Измените условия поиска или создайте новое заявление.</div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Роли и доступ — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Роли и доступ</h1></div>
+    <div class="page-head__sub">
+      Роли выдаются автоматически по членству в группах Active Directory. Здесь настраиваются маски групп
+      и ответственный по роли — ему попадают задачи согласования.
+    </div>
+  </div>
+</div>
+
+<div class="card mb-2">
+  <div class="card__body">
+    <div class="alert alert--info" style="margin:0">
+      <svg class="icon"><use href="#i-info"/></svg>
+      <div>
+        В поле «Группы AD» — по одному шаблону в строке. Поддерживаются точное имя группы
+        (<code>ECROS-Portal-HR</code>), DN (<code>CN=ECROS-Portal-HR,OU=Groups,DC=ecros,DC=local</code>)
+        и маски со звёздочкой (<code>ECROS-*-HR</code>). Роли применяются при следующей синхронизации или входе сотрудника.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="stack">
+  {% for role in roles %}
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="role_id" value="{{ role.pk }}">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-shield"/></svg>
+        <div>
+          <div class="card__title">{{ role.name }} <span class="muted" style="font-weight:500">· {{ role.code }}</span></div>
+          <div class="card__subtitle">{{ role.description|default:"описание не задано" }}</div>
+        </div>
+        <div class="card__actions">
+          <span class="badge">{{ role.members.count }} сотр.</span>
+          {% if not role.is_active %}<span class="badge badge--muted">выключена</span>{% endif %}
+          <button class="btn btn--sm btn--primary" type="submit">Сохранить</button>
+        </div>
+      </div>
+      <div class="card__body">
+        <div class="form-grid">
+          <div class="field">
+            <label class="label">Группы AD (по одной в строке)</label>
+            <textarea class="input" name="ad_groups" rows="4" placeholder="ECROS-Portal-HR">{% for group in role.ad_groups %}{{ group }}
+{% endfor %}</textarea>
+          </div>
+          <div>
+            <div class="field">
+              <label class="label">Ответственный по роли</label>
+              <select class="input" name="head">
+                <option value="">— не задан (первый сотрудник с ролью) —</option>
+                {% for employee in employees %}
+                <option value="{{ employee.pk }}" {% if role.head_id == employee.pk %}selected{% endif %}>{{ employee.full_name }} — {{ employee.job_title|truncatechars:30 }}</option>
+                {% endfor %}
+              </select>
+              <div class="help">Например, для роли «HR» — руководитель отдела кадров: ему уходят заявления на шаг «Отдел кадров».</div>
+            </div>
+            <div class="text-sm muted">
+              <strong>Участники ({{ role.members.count }}):</strong>
+              {% for member in role.members.all|slice:":12" %}{{ member.short_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+              {% if role.members.count > 12 %} и другие{% endif %}
+              {% if not role.members.exists %}<span class="muted">— пока никого (заполнится при синхронизации)</span>{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+  {% empty %}
+  <div class="card"><div class="empty"><div class="empty__title">Роли не настроены</div><div class="text-sm">Создайте роли в админке Django.</div></div></div>
+  {% endfor %}
+</div>
+
+{% if ad_groups %}
+<div class="card mt-2">
+  <div class="card__header">
+    <svg class="icon"><use href="#i-database"/></svg>
+    <div class="card__title">Группы Active Directory</div>
+    <div class="card__actions"><span class="badge">{{ ad_groups|length }}</span></div>
+  </div>
+  <div class="card__body">
+    <div class="chip-list">
+      {% for group in ad_groups %}
+      <span class="badge" title="{{ group.dn }}">{{ group.name }} <span class="muted">· {{ group.member_count }}</span></span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

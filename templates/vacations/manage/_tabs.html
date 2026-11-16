@@ -1,0 +1,9 @@
+{% load portal_extras %}
+<div class="tabs">
+  <a class="tabs__item {% if request.resolver_match.url_name == 'manage' %}is-active{% endif %}" href="{% url 'vacations:manage' %}">Обзор</a>
+  <a class="tabs__item {% if request.resolver_match.url_name == 'manage_periods' %}is-active{% endif %}" href="{% url 'vacations:manage_periods' %}">Периоды</a>
+  <a class="tabs__item {% if request.resolver_match.url_name == 'manage_chains' or request.resolver_match.url_name == 'chain_edit' or request.resolver_match.url_name == 'chain_new' %}is-active{% endif %}" href="{% url 'vacations:manage_chains' %}">Маршруты согласования</a>
+  <a class="tabs__item {% if request.resolver_match.url_name == 'manage_balances' %}is-active{% endif %}" href="{% url 'vacations:manage_balances' %}">Права на отпуск</a>
+  <a class="tabs__item {% if request.resolver_match.url_name == 'manage_types' %}is-active{% endif %}" href="{% url 'vacations:manage_types' %}">Виды отпусков</a>
+  <a class="tabs__item {% if request.resolver_match.url_name == 'manage_holidays' %}is-active{% endif %}" href="{% url 'vacations:manage_holidays' %}">Производственный календарь</a>
+</div>

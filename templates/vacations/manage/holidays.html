@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Производственный календарь — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Производственный календарь {{ year }}</h1></div>
+    <div class="page-head__sub">
+      Нерабочие праздничные дни не включаются в календарные дни отпуска (ст. 120 ТК РФ).
+      Перенесённые рабочие субботы отмечайте флагом «рабочий день».
+    </div>
+  </div>
+  <div class="page-head__actions">
+    <form method="get">
+      <select class="input" name="year" onchange="this.form.submit()" style="width:auto">
+        {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+
+{% include "vacations/manage/_tabs.html" %}
+
+<div class="grid grid--sidebar">
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-calendar"/></svg>
+      <div class="card__title">Дни календаря ({{ holidays|length }})</div>
+    </div>
+    <div class="table-wrap">
+      <table class="table table--compact">
+        <thead><tr><th style="width:130px">Дата</th><th>Название</th><th style="width:150px">Тип</th><th style="width:80px"></th></tr></thead>
+        <tbody>
+          {% for holiday in holidays %}
+          <tr>
+            <td class="nowrap"><strong>{{ holiday.date|ru_date }}</strong></td>
+            <td>{{ holiday.name }}</td>
+            <td>
+              {% if holiday.is_working %}
+              <span class="badge badge--info">рабочая суббота</span>
+              {% else %}
+              <span class="badge badge--danger">праздник</span>
+              {% endif %}
+            </td>
+            <td class="right">
+              <form method="post" data-confirm="Удалить {{ holiday.date|ru_date }}?" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="holiday_id" value="{{ holiday.pk }}">
+                <button class="btn btn--sm btn--ghost" type="submit"><svg class="icon"><use href="#i-trash"/></svg></button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4"><div class="empty"><div class="empty__title">Календарь на {{ year }} год не заполнен</div><div class="text-sm">Праздничные дни будут засчитываться в отпуск как обычные дни.</div></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-plus"/></svg>
+        <div class="card__title">Добавить день</div>
+      </div>
+      <div class="card__body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add">
+          <div class="field">
+            <label class="label">Дата</label>
+            {{ form.date }}
+          </div>
+          <div class="field">
+            <label class="label">Название</label>
+            {{ form.name }}
+          </div>
+          <div class="field">
+            <label class="checkbox">{{ form.is_working }} Рабочий день (перенос)</label>
+          </div>
+          <button class="btn btn--primary btn--block" type="submit">Добавить</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card card--flat">
+      <div class="card__body">
+        <div class="hint-box">
+          Перенесённые выходные (рабочие субботы) отмечайте галочкой «Рабочий день» — такие дни не исключаются
+          из отпуска, но учитываются при расчёте рабочих дней. Календарь заполняется по постановлению
+          Правительства РФ на соответствующий год.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

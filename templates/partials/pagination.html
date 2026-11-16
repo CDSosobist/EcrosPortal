@@ -1,0 +1,32 @@
+{% load portal_extras %}
+{% if page_obj.has_other_pages %}
+<nav class="pagination" aria-label="Постраничная навигация">
+  {% if page_obj.has_previous %}
+    <a href="{% query_with page=page_obj.previous_page_number %}">
+      <svg class="icon" style="width:14px;height:14px"><use href="#i-chevron-left"/></svg>
+    </a>
+  {% else %}
+    <span class="is-disabled"><svg class="icon" style="width:14px;height:14px"><use href="#i-chevron-left"/></svg></span>
+  {% endif %}
+
+  {% for num in page_obj.paginator.page_range %}
+    {% if num == page_obj.number %}
+      <span class="is-current">{{ num }}</span>
+    {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+      <a href="{% query_with page=num %}">{{ num }}</a>
+    {% elif num == 1 or num == page_obj.paginator.num_pages %}
+      <a href="{% query_with page=num %}">{{ num }}</a>
+    {% elif num == page_obj.number|add:"-4" or num == page_obj.number|add:"4" %}
+      <span class="is-disabled">…</span>
+    {% endif %}
+  {% endfor %}
+
+  {% if page_obj.has_next %}
+    <a href="{% query_with page=page_obj.next_page_number %}">
+      <svg class="icon" style="width:14px;height:14px"><use href="#i-chevron-right"/></svg>
+    </a>
+  {% else %}
+    <span class="is-disabled"><svg class="icon" style="width:14px;height:14px"><use href="#i-chevron-right"/></svg></span>
+  {% endif %}
+</nav>
+{% endif %}

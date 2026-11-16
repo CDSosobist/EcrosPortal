@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Маршруты согласования — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Маршруты согласования отпусков</h1></div>
+    <div class="page-head__sub">Цепочка шагов: кто и в каком порядке согласует заявления. Маршрут выбирается по подразделению → роли → по умолчанию.</div>
+  </div>
+  <div class="page-head__actions">
+    <a href="{% url 'vacations:chain_new' %}" class="btn btn--primary"><svg class="icon"><use href="#i-plus"/></svg> Новый маршрут</a>
+  </div>
+</div>
+
+{% include "vacations/manage/_tabs.html" %}
+
+<div class="stack">
+  {% for chain in chains %}
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-sitemap"/></svg>
+      <div>
+        <div class="card__title">
+          {{ chain.name }}
+          {% if chain.is_default %}<span class="badge badge--primary" style="font-size:10px">по умолчанию</span>{% endif %}
+          {% if not chain.is_active %}<span class="badge badge--muted" style="font-size:10px">выключен</span>{% endif %}
+        </div>
+        <div class="card__subtitle">
+          код: {{ chain.code }} · приоритет {{ chain.priority }}
+          {% if chain.department %} · подразделение: {{ chain.department.name }}{% endif %}
+          {% if chain.applies_to_roles.all %} · роли: {% for role in chain.applies_to_roles.all %}{{ role.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+        </div>
+      </div>
+      <div class="card__actions">
+        <a href="{% url 'vacations:chain_edit' chain.pk %}" class="btn btn--sm"><svg class="icon"><use href="#i-edit"/></svg> Изменить</a>
+        {% if chain.is_active %}
+        <form method="post" action="{% url 'vacations:chain_delete' chain.pk %}" data-confirm="Выключить маршрут «{{ chain.name }}»?" class="inline-form">
+          {% csrf_token %}
+          <button class="btn btn--sm btn--danger" type="submit">Выключить</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card__body">
+      {% if chain.steps.all %}
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        {% for step in chain.ordered_steps %}
+        <span class="badge" style="padding:6px 11px">
+          <span class="dot" style="background:var(--primary)"></span>
+          {{ step.order }}. {{ step.display_title }}
+          {% if step.approver_kind == 'role' and step.role %} · {{ step.role.name }}{% endif %}
+          {% if step.approver_kind == 'user' and step.user %} · {{ step.user.short_name }}{% endif %}
+        </span>
+        {% if not forloop.last %}<svg class="icon muted" style="width:14px;height:14px"><use href="#i-arrow-right"/></svg>{% endif %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="alert alert--warning" style="margin:0">
+        <svg class="icon"><use href="#i-alert"/></svg>
+        <div>В маршруте нет шагов — заявления по нему будут согласованы автоматически. Добавьте шаги.</div>
+      </div>
+      {% endif %}
+      {% if chain.description %}<p class="muted text-sm mt-2" style="margin-bottom:0">{{ chain.description }}</p>{% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="card">
+    <div class="empty">
+      <svg class="icon empty__icon"><use href="#i-sitemap"/></svg>
+      <div class="empty__title">Маршруты не настроены</div>
+      <div class="text-sm">Создайте маршрут — иначе заявления не смогут уйти на согласование.</div>
+      <a href="{% url 'vacations:chain_new' %}" class="btn btn--primary mt-2">Создать маршрут</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card mt-2 card--flat">
+  <div class="card__body">
+    <div class="muted text-sm">
+      <strong>Типовые типы шагов:</strong> непосредственный руководитель · руководитель руководителя ·
+      руководитель подразделения · директор направления · отдел кадров · сотрудник с ролью · конкретный сотрудник.
+      Для шагов по роли ответственный задаётся в разделе «Роли и доступ».
+    </div>
+  </div>
+</div>
+{% endblock %}

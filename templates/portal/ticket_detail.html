@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}{{ ticket.number }} — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="breadcrumbs">
+      <span><a href="{% url 'portal:tickets' %}">Заявки</a></span>
+      <span>{{ ticket.number }}</span>
+    </div>
+    <div class="page-head__title">
+      <h1 style="font-size:21px">{{ ticket.subject }}</h1>
+      <span class="badge badge--{{ ticket.status|status_badge }}">{{ ticket.get_status_display }}</span>
+    </div>
+    <div class="page-head__sub">
+      {{ ticket.get_category_display }} · приоритет: {{ ticket.get_priority_display }} ·
+      создана {{ ticket.created_at|ru_datetime }} · заявитель {{ ticket.requester.full_name }}
+    </div>
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-file"/></svg>
+        <div class="card__title">Описание</div>
+      </div>
+      <div class="card__body">
+        <div class="prose">{{ ticket.description|markdown }}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-users"/></svg>
+        <div class="card__title">Переписка</div>
+        <div class="card__actions"><span class="badge">{{ comments|length }}</span></div>
+      </div>
+      <div class="card__body card__body--flush">
+        {% for comment in comments %}
+        <div style="padding:13px 16px;border-bottom:1px solid var(--border){% if comment.is_internal %};background:var(--warning-soft){% endif %}">
+          <div class="row mb-1">
+            <span class="{{ comment.author|avatar_class }} avatar--sm">{{ comment.author|initials }}</span>
+            <div style="flex:1;min-width:0">
+              <div class="person__name">{{ comment.author.full_name|default:"Система" }}</div>
+              <div class="person__meta">{{ comment.created_at|ru_datetime }}</div>
+            </div>
+            {% if comment.is_internal %}<span class="badge badge--warn">внутренний</span>{% endif %}
+          </div>
+          <div class="text-sm" style="white-space:pre-wrap">{{ comment.body }}</div>
+        </div>
+        {% empty %}
+        <div class="empty" style="padding:22px 16px"><div class="text-sm">Комментариев пока нет</div></div>
+        {% endfor %}
+      </div>
+      <div class="card__footer">
+        <form method="post" action="{% url 'portal:ticket_comment' ticket.pk %}">
+          {% csrf_token %}
+          {{ comment_form.body }}
+          {% if is_agent %}
+          <label class="checkbox mt-1">{{ comment_form.is_internal }} Внутренний комментарий (не виден заявителю)</label>
+          {% endif %}
+          <button class="btn btn--primary btn--sm mt-2" type="submit"><svg class="icon"><use href="#i-send"/></svg> Отправить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-info"/></svg>
+        <div class="card__title">Реквизиты</div>
+      </div>
+      <div class="card__body">
+        <dl class="kv" style="grid-template-columns:120px 1fr">
+          <dt>Номер</dt><dd>{{ ticket.number }}</dd>
+          <dt>Категория</dt><dd>{{ ticket.get_category_display }}</dd>
+          <dt>Приоритет</dt><dd><span class="badge badge--{{ ticket.priority|status_badge }}">{{ ticket.get_priority_display }}</span></dd>
+          <dt>Заявитель</dt><dd><a href="{{ ticket.requester.get_absolute_url }}">{{ ticket.requester.short_name }}</a></dd>
+          <dt>Исполнитель</dt><dd>{{ ticket.assignee.full_name|default:"не назначен" }}</dd>
+          <dt>Создана</dt><dd>{{ ticket.created_at|ru_datetime }}</dd>
+          <dt>Обновлена</dt><dd>{{ ticket.updated_at|ru_datetime }}</dd>
+          {% if ticket.closed_at %}<dt>Закрыта</dt><dd>{{ ticket.closed_at|ru_datetime }}</dd>{% endif %}
+        </dl>
+      </div>
+    </div>
+
+    {% if is_agent %}
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-settings"/></svg>
+        <div class="card__title">Обработка заявки</div>
+      </div>
+      <div class="card__body">
+        <form method="post" action="{% url 'portal:ticket_update' ticket.pk %}">
+          {% csrf_token %}
+          <div class="field">
+            <label class="label">Статус</label>
+            {{ status_form.status }}
+          </div>
+          <div class="field">
+            <label class="label">Исполнитель</label>
+            {{ status_form.assignee }}
+          </div>
+          <div class="field">
+            <label class="label">Комментарий к изменению</label>
+            {{ status_form.comment }}
+          </div>
+          <button class="btn btn--primary btn--block btn--sm" type="submit">Обновить заявку</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

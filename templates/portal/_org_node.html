@@ -1,0 +1,24 @@
+{% load portal_extras %}
+<li style="margin:0 0 6px">
+  <div class="row" style="padding:9px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)">
+    <svg class="icon" style="color:var(--text-muted)"><use href="#i-building"/></svg>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:650">{{ node.department.name }}</div>
+      <div class="muted text-sm">
+        {% if node.head %}
+          Руководитель: <a href="{{ node.head.get_absolute_url }}">{{ node.head.full_name }}</a>
+        {% else %}
+          Руководитель не назначен
+        {% endif %}
+      </div>
+    </div>
+    <a href="{% url 'portal:directory' %}?department={{ node.department.pk }}" class="badge">{{ node.staff }} сотр.</a>
+  </div>
+  {% if node.children %}
+  <ul style="list-style:none;margin:8px 0 0;padding-left:24px;border-left:1px dashed var(--border-strong)">
+    {% for child in node.children %}
+      {% include "portal/_org_node.html" with node=child %}
+    {% endfor %}
+  </ul>
+  {% endif %}
+</li>

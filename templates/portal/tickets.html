@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Заявки — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Заявки в поддержку</h1></div>
+    <div class="page-head__sub">
+      {% if is_agent %}Открытых заявок по компании: {{ open_count }}{% else %}Ваши обращения в ИТ-отдел, кадры и АХО{% endif %}
+    </div>
+  </div>
+  <div class="page-head__actions">
+    <a href="{% url 'portal:ticket_new' %}" class="btn btn--primary"><svg class="icon"><use href="#i-plus"/></svg> Создать заявку</a>
+  </div>
+</div>
+
+<div class="card mb-2">
+  <div class="card__body">
+    <form method="get" class="filters">
+      <div class="field">
+        <label class="label">Статус</label>
+        <select class="input" name="status" onchange="this.form.submit()">
+          <option value="">Все статусы</option>
+          <option value="new" {% if status == 'new' %}selected{% endif %}>Новая</option>
+          <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>В работе</option>
+          <option value="waiting" {% if status == 'waiting' %}selected{% endif %}>Ждёт ответа</option>
+          <option value="resolved" {% if status == 'resolved' %}selected{% endif %}>Решена</option>
+          <option value="closed" {% if status == 'closed' %}selected{% endif %}>Закрыта</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Категория</label>
+        <select class="input" name="category" onchange="this.form.submit()">
+          <option value="">Все категории</option>
+          <option value="it" {% if category == 'it' %}selected{% endif %}>ИТ и оборудование</option>
+          <option value="access" {% if category == 'access' %}selected{% endif %}>Доступы</option>
+          <option value="hr" {% if category == 'hr' %}selected{% endif %}>Кадры</option>
+          <option value="office" {% if category == 'office' %}selected{% endif %}>Офис и АХО</option>
+          <option value="other" {% if category == 'other' %}selected{% endif %}>Другое</option>
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>№</th>
+          <th>Тема</th>
+          <th>Категория</th>
+          <th>Приоритет</th>
+          <th>Заявитель</th>
+          <th>Исполнитель</th>
+          <th>Статус</th>
+          <th>Создана</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ticket in tickets %}
+        <tr>
+          <td class="muted text-sm nowrap">{{ ticket.number }}</td>
+          <td><a href="{{ ticket.get_absolute_url }}" style="font-weight:600;color:inherit">{{ ticket.subject|truncatechars:64 }}</a></td>
+          <td class="text-sm soft">{{ ticket.get_category_display }}</td>
+          <td><span class="badge badge--{{ ticket.priority|status_badge }}">{{ ticket.get_priority_display }}</span></td>
+          <td class="text-sm">{{ ticket.requester.short_name }}</td>
+          <td class="text-sm soft">{{ ticket.assignee.short_name|default:"—" }}</td>
+          <td><span class="badge badge--{{ ticket.status|status_badge }}">{{ ticket.get_status_display }}</span></td>
+          <td class="text-sm muted nowrap">{{ ticket.created_at|ru_date }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8">
+            <div class="empty">
+              <svg class="icon empty__icon"><use href="#i-help"/></svg>
+              <div class="empty__title">Заявок нет</div>
+              <div class="text-sm">Создайте заявку — ИТ-отдел, кадры или АХО получат её и ответят в портале.</div>
+              <a href="{% url 'portal:ticket_new' %}" class="btn btn--primary mt-2">Создать заявку</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.has_other_pages %}<div class="card__footer">{% include "partials/pagination.html" %}</div>{% endif %}
+</div>
+{% endblock %}

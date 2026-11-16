@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Главная — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title">
+      <h1>Здравствуйте, {{ user.first_name|default:user.short_name }}!</h1>
+    </div>
+    <div class="page-head__sub">
+      {{ today|ru_date }} · {{ user.job_title }}{% if user.department %} · {{ user.department.name }}{% endif %}
+    </div>
+  </div>
+  <div class="page-head__actions">
+    <a href="{% url 'vacations:request_new' %}" class="btn btn--primary">
+      <svg class="icon"><use href="#i-plus"/></svg> Оформить отпуск
+    </a>
+    <a href="{% url 'portal:ticket_new' %}" class="btn">
+      <svg class="icon"><use href="#i-help"/></svg> Создать заявку
+    </a>
+  </div>
+</div>
+
+<div class="grid grid--4 mb-2">
+  <div class="card stat stat--accent">
+    <div class="stat__label">Остаток отпуска {{ year }}</div>
+    <div class="stat__value">{{ summary.available }} <span style="font-size:15px;font-weight:600">дн.</span></div>
+    <div class="stat__hint">
+      Всего {{ summary.total }}, использовано {{ summary.used }}{% if summary.pending %}, на согласовании {{ summary.pending }}{% endif %}
+    </div>
+  </div>
+  <div class="card stat">
+    <div class="stat__label">Ждут моего решения</div>
+    <div class="stat__value">{{ pending_approvals }}</div>
+    <div class="stat__hint"><a href="{% url 'vacations:approvals' %}">Перейти к согласованию →</a></div>
+  </div>
+  <div class="card stat">
+    <div class="stat__label">Мои заявки в работе</div>
+    <div class="stat__value">{{ my_tickets|length }}</div>
+    <div class="stat__hint"><a href="{% url 'portal:tickets' %}">Все заявки →</a></div>
+  </div>
+  <div class="card stat">
+    <div class="stat__label">Непрочитанных уведомлений</div>
+    <div class="stat__value">{{ unread_notifications }}</div>
+    <div class="stat__hint"><a href="{% url 'portal:notifications' %}">Открыть уведомления →</a></div>
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    {% if pinned %}
+    <div class="card" style="border-color:#cfdcfa;background:linear-gradient(135deg,#f5f8ff,#ffffff)">
+      <div class="card__body">
+        <div class="row mb-1">
+          <span class="badge badge--primary"><svg class="icon" style="width:12px;height:12px"><use href="#i-pin"/></svg> Важное объявление</span>
+          {% if pinned.category %}<span class="badge">{{ pinned.category.name }}</span>{% endif %}
+        </div>
+        <h2><a href="{{ pinned.get_absolute_url }}" style="color:inherit">{{ pinned.title }}</a></h2>
+        <p class="soft mt-1">{{ pinned.short_text }}</p>
+        <div class="row">
+          <a href="{{ pinned.get_absolute_url }}" class="btn btn--sm">Читать</a>
+          <span class="muted text-sm">{{ pinned.published_at|ru_date }}</span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-calendar"/></svg>
+        <div>
+          <div class="card__title">Мои отпуска</div>
+          <div class="card__subtitle">График {{ year }} · {% if period %}{{ period.get_status_display }}{% else %}период не открыт{% endif %}</div>
+        </div>
+        <div class="card__actions">
+          <a href="{% url 'vacations:index' %}" class="btn btn--sm btn--ghost">Подробнее</a>
+        </div>
+      </div>
+      <div class="card__body">
+        {% if upcoming_vacation %}
+        <div class="alert alert--success" style="margin-bottom:14px">
+          <svg class="icon"><use href="#i-check"/></svg>
+          <div>
+            <strong>Ближайший отпуск:</strong>
+            {{ upcoming_vacation.start_date|ru_date }} — {{ upcoming_vacation.end_date|ru_date }}
+            ({{ upcoming_vacation.days_count|days_word }}, {{ upcoming_vacation.vacation_type.name }})
+          </div>
+        </div>
+        {% endif %}
+        {% for item in my_requests %}
+        <div class="row row--between" style="padding:8px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-weight:600">{{ item.start_date|ru_date }} — {{ item.end_date|ru_date }}</div>
+            <div class="muted text-sm">{{ item.vacation_type.name }} · {{ item.days_count|days_word }}</div>
+          </div>
+          <span class="badge badge--{{ item.status|status_badge }}">{{ item.get_status_display }}</span>
+        </div>
+        {% empty %}
+        <div class="empty" style="padding:18px 0">
+          <div class="empty__title">Заявлений пока нет</div>
+          <div class="text-sm">Оформите отпуск заранее — так проще согласовать даты с руководителем.</div>
+          <a href="{% url 'vacations:request_new' %}" class="btn btn--primary btn--sm mt-2">Оформить отпуск</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-newspaper"/></svg>
+        <div class="card__title">Новости компании</div>
+        <div class="card__actions">
+          <a href="{% url 'portal:news_list' %}" class="btn btn--sm btn--ghost">Все новости</a>
+        </div>
+      </div>
+      <div class="card__body">
+        {% for post in news %}
+        <div class="news-item">
+          <div class="news-item__body">
+            <div class="news-item__title"><a href="{{ post.get_absolute_url }}" style="color:inherit">{{ post.title }}</a></div>
+            <div class="news-item__desc">{{ post.short_text|truncatechars:150 }}</div>
+            <div class="news-item__meta">
+              {% if post.category %}<span class="badge" style="font-size:10.5px">{{ post.category.name }}</span>{% endif %}
+              <span>{{ post.published_at|ru_date }}</span>
+              {% if post.author %}<span>{{ post.author.short_name }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <div class="empty" style="padding:18px 0"><div class="empty__title">Новостей пока нет</div></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-check"/></svg>
+        <div class="card__title">Ждут согласования</div>
+      </div>
+      <div class="card__body card__body--flush">
+        {% for step in pending_my %}
+        <a href="{% url 'vacations:request_detail' step.request.pk %}" class="row" style="padding:11px 16px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none">
+          <span class="{{ step.request.employee|avatar_class }} avatar--sm">{{ step.request.employee|initials }}</span>
+          <span style="min-width:0;flex:1">
+            <span class="person__name">{{ step.request.employee.short_name }}</span>
+            <span class="person__meta">{{ step.request.start_date|ru_date:False }}–{{ step.request.end_date|ru_date:False }} · {{ step.request.days_count|days_word }}</span>
+          </span>
+          <span class="badge badge--warn">Ждёт вас</span>
+        </a>
+        {% empty %}
+        <div class="empty" style="padding:22px 16px">
+          <div class="empty__title">Нет задач на согласование</div>
+          <div class="text-sm">Здесь появятся заявления ваших сотрудников.</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% if pending_my %}
+      <div class="card__footer"><a href="{% url 'vacations:approvals' %}" class="btn btn--sm btn--block">Открыть очередь согласования</a></div>
+      {% endif %}
+    </div>
+
+    {% if team_absent_now %}
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-users"/></svg>
+        <div class="card__title">Команда отсутствует сегодня</div>
+      </div>
+      <div class="card__body">
+        {% for item in team_absent_now %}
+        <div class="row" style="padding:5px 0">
+          <span class="{{ item.employee|avatar_class }} avatar--sm">{{ item.employee|initials }}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13px">{{ item.employee.short_name }}</div>
+            <div class="muted text-sm">до {{ item.end_date|ru_date }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-calendar-check"/></svg>
+        <div class="card__title">Отпуска коллег</div>
+        <div class="card__actions"><a href="{% url 'vacations:calendar' %}" class="btn btn--sm btn--ghost">Календарь</a></div>
+      </div>
+      <div class="card__body card__body--flush">
+        {% for item in department_vacations %}
+        <div class="row" style="padding:10px 16px;border-bottom:1px solid var(--border)">
+          <span class="{{ item.employee|avatar_class }} avatar--sm">{{ item.employee|initials }}</span>
+          <div style="flex:1;min-width:0">
+            <div class="person__name">{{ item.employee.short_name }}</div>
+            <div class="person__meta">{{ item.start_date|ru_date:False }} — {{ item.end_date|ru_date:False }}</div>
+          </div>
+          <span class="dot" style="background:{{ item.vacation_type.color }}"></span>
+        </div>
+        {% empty %}
+        <div class="empty" style="padding:22px 16px">
+          <div class="empty__title">На ближайшие недели отпусков нет</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if quick_links %}
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-link"/></svg>
+        <div class="card__title">Быстрые ссылки</div>
+      </div>
+      <div class="card__body">
+        <div class="quick-grid">
+          {% for link in quick_links %}
+          <a class="tile" href="{{ link.url }}"{% if link.open_in_new_tab %} target="_blank" rel="noopener"{% endif %}>
+            <span class="tile__icon"><svg class="icon"><use href="#i-{{ link.icon }}"/></svg></span>
+            <span class="tile__title">{{ link.title }}</span>
+            {% if link.description %}<span class="tile__text">{{ link.description }}</span>{% endif %}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-book"/></svg>
+        <div class="card__title">Полезные инструкции</div>
+        <div class="card__actions"><a href="{% url 'portal:kb_list' %}" class="btn btn--sm btn--ghost">База знаний</a></div>
+      </div>
+      <div class="card__body card__body--flush">
+        {% for article in articles %}
+        <a href="{{ article.get_absolute_url }}" class="row" style="padding:10px 16px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none">
+          <svg class="icon" style="color:var(--text-muted)"><use href="#i-file"/></svg>
+          <div style="flex:1;min-width:0">
+            <div class="person__name">{{ article.title|truncatechars:52 }}</div>
+            <div class="person__meta">{{ article.category.name|default:"Без раздела" }} · {{ article.updated_at|ru_date }}</div>
+          </div>
+        </a>
+        {% empty %}
+        <div class="empty" style="padding:22px 16px"><div class="empty__title">База знаний пуста</div></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

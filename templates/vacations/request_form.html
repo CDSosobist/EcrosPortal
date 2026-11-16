@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}{% if request_obj %}Заявление {{ request_obj.number }}{% else %}Новое заявление на отпуск{% endif %} — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="breadcrumbs">
+      <span><a href="{% url 'vacations:index' %}">Отпуска</a></span>
+      <span>{% if request_obj %}Заявление {{ request_obj.number }}{% else %}Новое заявление{% endif %}</span>
+    </div>
+    <div class="page-head__title">
+      <h1>{% if request_obj %}Исправление заявления{% else %}Заявление на отпуск{% endif %}</h1>
+    </div>
+    <div class="page-head__sub">
+      {% if target %}Сотрудник: {{ target.full_name }}{% if target.job_title %} · {{ target.job_title }}{% endif %}{% endif %}
+      {% if period %} · график {{ period.year }} года{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-calendar"/></svg>
+      <div class="card__title">Параметры отпуска</div>
+    </div>
+    <div class="card__body">
+      {% if form.non_field_errors %}
+      <div class="form-errors">
+        {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+      </div>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.employee %}
+        <div class="field">
+          <label class="label" for="{{ form.employee.id_for_label }}">Сотрудник</label>
+          {{ form.employee }}
+          {% if form.employee.help_text %}<div class="help">{{ form.employee.help_text }}</div>{% endif %}
+          {{ form.employee.errors }}
+        </div>
+        {% endif %}
+
+        <div class="form-grid">
+          <div class="field">
+            <label class="label" for="{{ form.period.id_for_label }}">График на год</label>
+            {{ form.period }}
+            {{ form.period.errors }}
+          </div>
+          <div class="field">
+            <label class="label" for="{{ form.vacation_type.id_for_label }}">Вид отпуска</label>
+            {{ form.vacation_type }}
+            {{ form.vacation_type.errors }}
+          </div>
+          <div class="field">
+            <label class="label" for="{{ form.start_date.id_for_label }}">Дата начала</label>
+            {{ form.start_date }}
+            {{ form.start_date.errors }}
+          </div>
+          <div class="field">
+            <label class="label" for="{{ form.end_date.id_for_label }}">Дата окончания</label>
+            {{ form.end_date }}
+            {{ form.end_date.errors }}
+          </div>
+          <div class="field">
+            <label class="label">Календарных дней</label>
+            <div class="row" style="height:38px">
+              <span class="badge badge--primary" style="font-size:13px" data-vacation-days>—</span>
+              <span class="muted text-sm">праздники не учитываются</span>
+            </div>
+          </div>
+          <div class="field"></div>
+          <div class="field field--full">
+            <label class="label" for="{{ form.employee_comment.id_for_label }}">Комментарий</label>
+            {{ form.employee_comment }}
+            <div class="help">Например: «Прошу учесть производственную необходимость» — комментарий увидят согласующие.</div>
+            {{ form.employee_comment.errors }}
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:8px">
+          <button type="submit" class="btn btn--primary">
+            <svg class="icon"><use href="#i-send"/></svg> Отправить на согласование
+          </button>
+          <a href="{% url 'vacations:index' %}" class="btn btn--ghost">Отмена</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-trend"/></svg>
+        <div class="card__title">Остаток дней в {{ period.year }}</div>
+      </div>
+      <div class="card__body">
+        <div class="row row--between mb-1">
+          <span class="muted text-sm">Доступно</span>
+          <strong>{{ summary.available }} из {{ summary.total }}</strong>
+        </div>
+        <div class="progress"><div class="progress__bar progress__bar--success" style="{% widthratio summary.available summary.total 100 %}%;width:{% widthratio summary.available summary.total 100 %}%"></div></div>
+        <div class="kv mt-2">
+          <dt>Положено</dt><dd>{{ summary.balance.entitled_days|default:0 }} дн.</dd>
+          <dt>Перенесено</dt><dd>{{ summary.balance.carried_over_days|default:0 }} дн.</dd>
+          <dt>Использовано</dt><dd>{{ summary.used }} дн.</dd>
+          <dt>На согласовании</dt><dd>{{ summary.pending }} дн.</dd>
+        </div>
+      </div>
+    </div>
+
+    {% if route_preview %}
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-sitemap"/></svg>
+        <div>
+          <div class="card__title">Маршрут согласования</div>
+          <div class="card__subtitle">{{ route_preview.template.name|default:"маршрут не настроен" }}</div>
+        </div>
+      </div>
+      <div class="card__body">
+        {% if route_preview.problems %}
+        <div class="alert alert--error" style="margin-bottom:12px">
+          <svg class="icon"><use href="#i-alert"/></svg>
+          <div>
+            <strong>Маршрут настроен не полностью:</strong>
+            <ul style="margin:6px 0 0;padding-left:16px">{% for problem in route_preview.problems %}<li>{{ problem }}</li>{% endfor %}</ul>
+          </div>
+        </div>
+        {% endif %}
+        <ol class="timeline">
+          {% for step in route_preview.steps %}
+          <li class="timeline__item">
+            <span class="timeline__dot {% if step.approver %}timeline__dot--current{% else %}timeline__dot--skipped{% endif %}">{{ step.order }}</span>
+            <div class="timeline__title">{{ step.title }}</div>
+            <div class="timeline__meta">
+              {% if step.approver %}
+                {{ step.approver.full_name }}{% if step.approver.job_title %} · {{ step.approver.job_title }}{% endif %}
+              {% else %}
+                согласующий не определён — шаг будет пропущен
+                {% if step.note %}<div class="text-sm">{{ step.note }}</div>{% endif %}
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+      <div class="card__footer text-sm muted">
+        Маршрут фиксируется в момент отправки: последующие изменения настроек не затронут это заявление.
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card card--flat">
+      <div class="card__body">
+        <div class="hint-box">
+          <strong>Правила расчёта.</strong>
+          Отпуск считается в календарных днях, нерабочие праздничные дни в него не входят (ст. 120 ТК РФ).
+          Минимум {{ min_notice_days|default:3 }} дн. до начала, не более {{ max_days|default:28 }} дн. за одно заявление.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="holidays-data" type="application/json">{{ holidays_json|safe }}</script>
+{% endblock %}

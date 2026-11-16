@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Мои отпуска — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Мои отпуска</h1></div>
+    <div class="page-head__sub">
+      График на {{ year }} год{% if period %} · {{ period.get_status_display }}{% if period.submission_deadline %} · заявления принимаются до {{ period.submission_deadline|ru_date }}{% endif %}{% endif %}
+    </div>
+  </div>
+  <div class="page-head__actions">
+    <form method="get" class="row" style="gap:8px">
+      <select class="input" name="year" onchange="this.form.submit()" style="width:auto">
+        {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+    </form>
+    <a href="{% url 'vacations:request_new' %}" class="btn btn--primary">
+      <svg class="icon"><use href="#i-plus"/></svg> Новое заявление
+    </a>
+  </div>
+</div>
+
+{% if not period.accepts_requests and period %}
+<div class="alert alert--warning">
+  <svg class="icon"><use href="#i-alert"/></svg>
+  <div>Приём заявлений на {{ period.year }} год закрыт. Оформление новых отпусков — через отдел кадров.</div>
+</div>
+{% endif %}
+
+<div class="grid grid--4 mb-2">
+  <div class="card stat stat--accent">
+    <div class="stat__label">Доступно дней</div>
+    <div class="stat__value">{{ summary.available }}</div>
+    <div class="stat__hint">из {{ summary.total }} положенных</div>
+  </div>
+  <div class="card stat">
+    <div class="stat__label">Использовано</div>
+    <div class="stat__value">{{ summary.used }}</div>
+    <div class="stat__hint">согласованные отпуска</div>
+  </div>
+  <div class="card stat">
+    <div class="stat__label">На согласовании</div>
+    <div class="stat__value">{{ summary.pending }}</div>
+    <div class="stat__hint">дней в заявлениях</div>
+  </div>
+  <div class="card stat">
+    <div class="stat__label">Перенесено с прошлого года</div>
+    <div class="stat__value">{{ summary.balance.carried_over_days|default:0 }}</div>
+    <div class="stat__hint">дней</div>
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-file"/></svg>
+        <div>
+          <div class="card__title">Мои заявления</div>
+          <div class="card__subtitle">Всего {{ my_requests|length }} записей</div>
+        </div>
+        <div class="card__actions">
+          <a href="{% url 'vacations:request_list' %}" class="btn btn--sm btn--ghost">Все</a>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Период</th>
+              <th>Вид</th>
+              <th class="table__num">Дней</th>
+              <th>Статус</th>
+              <th>Маршрут</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in my_requests %}
+            <tr>
+              <td>
+                <div style="font-weight:600">{{ item.start_date|ru_date }} — {{ item.end_date|ru_date }}</div>
+                <div class="muted text-sm">{{ item.number }}</div>
+              </td>
+              <td><span class="dot" style="background:{{ item.vacation_type.color }}"></span> {{ item.vacation_type.name }}</td>
+              <td class="table__num">{{ item.days_count }}</td>
+              <td><span class="badge badge--{{ item.status|status_badge }}">{{ item.get_status_display }}</span></td>
+              <td class="text-sm soft">
+                {% if item.is_pending and item.current_step %}
+                  ждёт: {{ item.current_step.approver.short_name|default:"—" }}
+                {% elif item.chain_template %}
+                  {{ item.chain_template.name|truncatechars:26 }}
+                {% else %}—{% endif %}
+              </td>
+              <td class="right"><a href="{% url 'vacations:request_detail' item.pk %}" class="btn btn--sm btn--ghost">Открыть</a></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6">
+                <div class="empty">
+                  <svg class="icon empty__icon"><use href="#i-calendar"/></svg>
+                  <div class="empty__title">Заявлений на отпуск пока нет</div>
+                  <div class="text-sm">Подайте заявление — оно уйдёт по маршруту согласования автоматически.</div>
+                  <a href="{% url 'vacations:request_new' %}" class="btn btn--primary mt-2">
+                    <svg class="icon"><use href="#i-plus"/></svg> Оформить отпуск
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if colleagues_on_vacation %}
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-users"/></svg>
+        <div class="card__title">Отпуска в моём подразделении</div>
+        <div class="card__actions"><a href="{% url 'vacations:schedule' %}" class="btn btn--sm btn--ghost">График</a></div>
+      </div>
+      <div class="card__body card__body--flush">
+        {% for item in colleagues_on_vacation %}
+        <div class="row" style="padding:10px 16px;border-bottom:1px solid var(--border)">
+          <span class="{{ item.employee|avatar_class }} avatar--sm">{{ item.employee|initials }}</span>
+          <div style="flex:1;min-width:0">
+            <div class="person__name">{{ item.employee.short_name }}</div>
+            <div class="person__meta">{{ item.vacation_type.name }} · {{ item.start_date|ru_date:False }}–{{ item.end_date|ru_date:False }}</div>
+          </div>
+          {% if item.start_date <= today and item.end_date >= today %}<span class="badge badge--info">в отпуске</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-info"/></svg>
+        <div class="card__title">Как оформить отпуск</div>
+      </div>
+      <div class="card__body">
+        <ol class="prose" style="padding-left:18px;margin:0">
+          <li>Нажмите «Новое заявление» и выберите даты.</li>
+          <li>Портал сам рассчитает календарные дни и проверит остаток.</li>
+          <li>Заявление уйдёт по маршруту: руководитель → кадры → директор (маршрут зависит от подразделения).</li>
+          <li>Согласованные отпуска попадают в график компании.</li>
+        </ol>
+        <div class="divider"></div>
+        <div class="kv">
+          <dt>Минимум до отпуска</dt><dd>{{ min_notice_days|default:"3" }} дн.</dd>
+          <dt>Максимум за раз</dt><dd>{{ max_days|default:"28" }} дн.</dd>
+          <dt>Перенос дней</dt><dd>через отдел кадров</dd>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-clock"/></svg>
+        <div class="card__title">Мои задачи на согласование</div>
+      </div>
+      <div class="card__body card__body--flush">
+        {% for step in approvals %}
+        <a href="{% url 'vacations:request_detail' step.request.pk %}" class="row" style="padding:10px 16px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none">
+          <span class="{{ step.request.employee|avatar_class }} avatar--sm">{{ step.request.employee|initials }}</span>
+          <div style="flex:1;min-width:0">
+            <div class="person__name">{{ step.request.employee.short_name }}</div>
+            <div class="person__meta">{{ step.request.start_date|ru_date:False }}–{{ step.request.end_date|ru_date:False }} · {{ step.request.days_count|days_word }}</div>
+          </div>
+        </a>
+        {% empty %}
+        <div class="empty" style="padding:20px 16px">
+          <div class="empty__title">Задач нет</div>
+          <div class="text-sm">Очередь согласования пуста.</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

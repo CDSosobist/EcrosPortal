@@ -1,0 +1,133 @@
+{% load static portal_extras %}<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}{{ PORTAL_SITE_NAME }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f5bd7'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' fill='white' text-anchor='middle'%3EЭ%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+{% include "partials/icons.html" %}
+{% with url_name=request.resolver_match.url_name %}
+<div class="app">
+  <aside class="sidebar">
+    <a href="{% url 'portal:dashboard' %}" class="sidebar__brand" style="text-decoration:none">
+      <span class="sidebar__logo">Э</span>
+      <span>
+        <span class="sidebar__title">{{ PORTAL_COMPANY_NAME }}</span>
+        <span class="sidebar__subtitle">Корпоративный портал</span>
+      </span>
+    </a>
+
+    <nav class="nav">
+      <a href="{% url 'portal:dashboard' %}" class="nav__item {% if url_name == 'dashboard' %}is-active{% endif %}">
+        <svg class="icon"><use href="#i-home"/></svg> Главная
+      </a>
+      <a href="{% url 'portal:directory' %}" class="nav__item {% if url_name == 'directory' or url_name == 'employee_detail' %}is-active{% endif %}">
+        <svg class="icon"><use href="#i-users"/></svg> Сотрудники
+      </a>
+      <a href="{% url 'portal:org_chart' %}" class="nav__item {% if url_name == 'org_chart' %}is-active{% endif %}">
+        <svg class="icon"><use href="#i-sitemap"/></svg> Оргструктура
+      </a>
+      <a href="{% url 'portal:news_list' %}" class="nav__item {% if url_name == 'news_list' or url_name == 'news_detail' %}is-active{% endif %}">
+        <svg class="icon"><use href="#i-newspaper"/></svg> Новости
+      </a>
+      <a href="{% url 'portal:kb_list' %}" class="nav__item {% if url_name == 'kb_list' or url_name == 'kb_detail' %}is-active{% endif %}">
+        <svg class="icon"><use href="#i-book"/></svg> База знаний
+      </a>
+      <a href="{% url 'portal:tickets' %}" class="nav__item {% if url_name == 'tickets' or url_name == 'ticket_detail' or url_name == 'ticket_new' %}is-active{% endif %}">
+        <svg class="icon"><use href="#i-help"/></svg> Заявки
+      </a>
+
+      <div class="nav__group">
+        <div class="nav__label">Отпуска</div>
+        <a href="{% url 'vacations:index' %}" class="nav__item {% if url_name == 'index' and request.resolver_match.namespace == 'vacations' %}is-active{% endif %}">
+          <svg class="icon"><use href="#i-calendar"/></svg> Мои отпуска
+        </a>
+        <a href="{% url 'vacations:approvals' %}" class="nav__item {% if url_name == 'approvals' %}is-active{% endif %}">
+          <svg class="icon"><use href="#i-check"/></svg> На согласовании
+          {% if pending_approvals %}<span class="nav__badge">{{ pending_approvals }}</span>{% endif %}
+        </a>
+        <a href="{% url 'vacations:schedule' %}" class="nav__item {% if url_name == 'schedule' or url_name == 'schedule_year' %}is-active{% endif %}">
+          <svg class="icon"><use href="#i-sitemap"/></svg> График отпусков
+        </a>
+        <a href="{% url 'vacations:calendar' %}" class="nav__item {% if url_name == 'calendar_view' %}is-active{% endif %}">
+          <svg class="icon"><use href="#i-calendar-check"/></svg> Календарь
+        </a>
+        <a href="{% url 'vacations:request_list' %}" class="nav__item {% if url_name == 'request_list' %}is-active{% endif %}">
+          <svg class="icon"><use href="#i-file"/></svg> Все заявления
+        </a>
+      </div>
+
+      {% if is_hr or is_portal_admin %}
+      <div class="nav__group">
+        <div class="nav__label">Кадры</div>
+        <a href="{% url 'vacations:manage' %}" class="nav__item {% if url_name and 'manage' in url_name or url_name == 'chain_new' or url_name == 'chain_edit' %}is-active{% endif %}">
+          <svg class="icon"><use href="#i-settings"/></svg> Настройки отпусков
+        </a>
+        <a href="{% url 'accounts:manage_roles' %}" class="nav__item {% if url_name == 'manage_roles' %}is-active{% endif %}">
+          <svg class="icon"><use href="#i-shield"/></svg> Роли и доступ
+        </a>
+        <a href="{% url 'accounts:manage_sync' %}" class="nav__item {% if url_name == 'manage_sync' %}is-active{% endif %}">
+          <svg class="icon"><use href="#i-database"/></svg> Синхронизация AD
+        </a>
+        {% if user.is_staff %}
+        <a href="/admin/" class="nav__item">
+          <svg class="icon"><use href="#i-briefcase"/></svg> Админка Django
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar__footer">
+      <a href="{% url 'accounts:profile' %}" class="nav__item">
+        <svg class="icon"><use href="#i-user"/></svg> Мой профиль
+      </a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn mobile-toggle" data-sidebar-toggle type="button" aria-label="Меню">
+        <svg class="icon"><use href="#i-menu"/></svg>
+      </button>
+      <form class="topbar__search" action="{% url 'portal:search' %}" method="get" role="search">
+        <svg class="icon"><use href="#i-search"/></svg>
+        <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Поиск по порталу: сотрудник, документ, заявка…" aria-label="Поиск">
+      </form>
+      <div class="topbar__actions">
+        {% block topbar_actions %}{% endblock %}
+        <a href="{% url 'portal:notifications' %}" class="icon-btn" aria-label="Уведомления">
+          <svg class="icon"><use href="#i-bell"/></svg>
+          {% if unread_notifications %}<span class="icon-btn__dot">{{ unread_notifications }}</span>{% endif %}
+        </a>
+        <a href="{% url 'accounts:profile' %}" class="user-chip">
+          <span class="{{ user|avatar_class }}">{{ user|initials }}</span>
+          <span class="user-chip__text">
+            <span class="user-chip__name">{{ user.short_name }}</span>
+            <span class="user-chip__role">{% if user.job_title %}{{ user.job_title|truncatechars:26 }}{% else %}{{ user.get_status_display }}{% endif %}</span>
+          </span>
+        </a>
+        <form action="{% url 'accounts:logout' %}" method="post" class="inline-form">
+          {% csrf_token %}
+          <button type="submit" class="icon-btn" aria-label="Выйти" title="Выйти">
+            <svg class="icon"><use href="#i-logout"/></svg>
+          </button>
+        </form>
+      </div>
+    </header>
+
+    <main class="content">
+      {% include "partials/messages.html" %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endwith %}
+<script src="{% static 'js/app.js' %}" defer></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

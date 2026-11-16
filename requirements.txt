@@ -1,0 +1,11 @@
+# Зависимости портала ЭКРОС
+# Установка: python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
+
+Django>=6.0,<6.2
+# Клиент LDAP для интеграции с Active Directory (чистый Python, без системных пакетов)
+ldap3>=2.9,<3.0
+
+# --- боевое развёртывание ---------------------------------------------------
+gunicorn>=22.0,<24.0
+psycopg[binary]>=3.2,<4.0     # PostgreSQL; можно убрать, если используется SQLite
+whitenoise>=6.7,<7.0          # раздача статики без nginx (опционально)

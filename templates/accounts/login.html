@@ -1,0 +1,86 @@
+{% load static portal_extras %}<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Вход — {{ PORTAL_SITE_NAME }}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f5bd7'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' fill='white' text-anchor='middle'%3EЭ%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+{% include "partials/icons.html" %}
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-card__logo">
+      <span class="sidebar__logo" style="width:44px;height:44px">Э</span>
+      <div>
+        <div style="font-weight:700;font-size:16px">{{ PORTAL_COMPANY_NAME }}</div>
+        <div class="muted text-sm">Корпоративный портал</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__body">
+        <h1 style="font-size:20px">Вход в портал</h1>
+        <p class="muted text-sm mt-1">
+          Используйте доменную учётную запись Active Directory — тот же логин и пароль, что и на рабочем компьютере.
+        </p>
+
+        {% if error %}
+        <div class="alert alert--error mt-2">
+          <svg class="icon"><use href="#i-alert"/></svg>
+          <div>{{ error }}</div>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'accounts:login' %}" class="mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          <div class="field">
+            <label class="label" for="id_username">Логин домена</label>
+            <input class="input" id="id_username" name="username" type="text" autocomplete="username" autofocus
+                   value="{{ username }}" placeholder="ivanov" required>
+          </div>
+          <div class="field">
+            <label class="label" for="id_password">Пароль</label>
+            <input class="input" id="id_password" name="password" type="password" autocomplete="current-password"
+                   placeholder="••••••••" required>
+          </div>
+          <label class="checkbox mb-2">
+            <input type="checkbox" name="remember" value="1"> Запомнить меня на этом устройстве
+          </label>
+          <button class="btn btn--primary btn--block" type="submit">
+            <svg class="icon"><use href="#i-logout"/></svg> Войти
+          </button>
+        </form>
+
+        {% if ad_provider == 'mock' %}
+        <div class="hint-box mt-2">
+          <strong>Демонстрационный режим.</strong>
+          Каталог сотрудников синтетический. Подойдёт любой логин из справочника
+          (например <code>a.ivanov</code>) и пароль длиной от 3 символов.
+          Пароль <code>wrong</code> имитирует ошибку входа.
+        </div>
+        {% elif not ad_enabled %}
+        <div class="hint-box mt-2">
+          Синхронизация с Active Directory отключена в настройках (AD_ENABLED=false).
+          Вход возможен только по локальным учётным записям портала.
+        </div>
+        {% endif %}
+
+        {% if local_login_allowed %}
+        <p class="muted text-sm mt-2" style="margin-bottom:0">
+          Проблемы со входом? Обратитесь в ИТ-отдел: <a href="mailto:{{ PORTAL_SUPPORT_EMAIL }}">{{ PORTAL_SUPPORT_EMAIL }}</a>
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <p class="muted text-sm center mt-2">
+      {{ PORTAL_SITE_NAME }} · внутренний ресурс компании. Все действия пользователей протоколируются.
+    </p>
+  </div>
+</div>
+</body>
+</html>

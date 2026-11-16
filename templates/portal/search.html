@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Поиск — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Поиск по порталу</h1></div>
+    <div class="page-head__sub">
+      {% if query %}«{{ query }}» — найдено {{ total }} результатов{% else %}Введите запрос в строке поиска сверху{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if not query %}
+<div class="card">
+  <div class="empty">
+    <svg class="icon empty__icon"><use href="#i-search"/></svg>
+    <div class="empty__title">Что можно найти</div>
+    <div class="text-sm">Сотрудников по фамилии и должности, новости, статьи базы знаний, свои заявки и заявления на отпуск.</div>
+  </div>
+</div>
+{% endif %}
+
+<div class="stack">
+  {% if results.employees %}
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-users"/></svg>
+      <div class="card__title">Сотрудники</div>
+      <div class="card__actions"><span class="badge">{{ results.employees|length }}</span></div>
+    </div>
+    <div class="card__body card__body--flush">
+      {% for employee in results.employees %}
+      <a href="{{ employee.get_absolute_url }}" class="row" style="padding:10px 16px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none">
+        <span class="{{ employee|avatar_class }} avatar--sm">{{ employee|initials }}</span>
+        <div style="flex:1;min-width:0">
+          <div class="person__name">{{ employee.full_name }}</div>
+          <div class="person__meta">{{ employee.job_title|default:"—" }}{% if employee.department %} · {{ employee.department.name }}{% endif %}</div>
+        </div>
+        {% if employee.phone_internal %}<span class="muted text-sm nowrap">{{ employee.phone_internal }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if results.kb %}
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-book"/></svg>
+      <div class="card__title">База знаний</div>
+    </div>
+    <div class="card__body card__body--flush">
+      {% for article in results.kb %}
+      <a href="{{ article.get_absolute_url }}" class="row" style="padding:10px 16px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none">
+        <svg class="icon" style="color:var(--primary)"><use href="#i-file"/></svg>
+        <div style="flex:1;min-width:0">
+          <div class="person__name">{{ article.title }}</div>
+          <div class="person__meta">{{ article.category.name|default:"Без раздела" }}</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if results.news %}
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-newspaper"/></svg>
+      <div class="card__title">Новости</div>
+    </div>
+    <div class="card__body card__body--flush">
+      {% for post in results.news %}
+      <a href="{{ post.get_absolute_url }}" class="row" style="padding:10px 16px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none">
+        <svg class="icon" style="color:var(--text-muted)"><use href="#i-newspaper"/></svg>
+        <div style="flex:1;min-width:0">
+          <div class="person__name">{{ post.title }}</div>
+          <div class="person__meta">{{ post.published_at|ru_date }}</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if results.vacations %}
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-calendar"/></svg>
+      <div class="card__title">Заявления на отпуск</div>
+    </div>
+    <div class="card__body card__body--flush">
+      {% for item in results.vacations %}
+      <a href="{% url 'vacations:request_detail' item.pk %}" class="row" style="padding:10px 16px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none">
+        <div style="flex:1;min-width:0">
+          <div class="person__name">{{ item.employee.short_name }} · {{ item.start_date|ru_date:False }}–{{ item.end_date|ru_date:False }}</div>
+          <div class="person__meta">{{ item.number }} · {{ item.get_status_display }}</div>
+        </div>
+        <span class="badge badge--{{ item.status|status_badge }}">{{ item.days_count }} дн.</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if results.tickets %}
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-help"/></svg>
+      <div class="card__title">Заявки</div>
+    </div>
+    <div class="card__body card__body--flush">
+      {% for ticket in results.tickets %}
+      <a href="{{ ticket.get_absolute_url }}" class="row" style="padding:10px 16px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none">
+        <div style="flex:1;min-width:0">
+          <div class="person__name">{{ ticket.subject }}</div>
+          <div class="person__meta">{{ ticket.number }} · {{ ticket.get_status_display }}</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if query and not total %}
+  <div class="card">
+    <div class="empty">
+      <svg class="icon empty__icon"><use href="#i-search"/></svg>
+      <div class="empty__title">Ничего не найдено</div>
+      <div class="text-sm">Попробуйте изменить запрос: фамилия, часть названия, ключевое слово.</div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

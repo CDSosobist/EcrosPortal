@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Настройки отпусков — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Настройки графика отпусков</h1></div>
+    <div class="page-head__sub">Периоды, маршруты согласования, права на дни и производственный календарь</div>
+  </div>
+</div>
+
+{% include "vacations/manage/_tabs.html" %}
+
+<div class="grid grid--4 mb-2">
+  <div class="card stat">
+    <div class="stat__label">На согласовании</div>
+    <div class="stat__value">{{ pending_total }}</div>
+    <div class="stat__hint">заявлений в работе</div>
+  </div>
+  <div class="card stat">
+    <div class="stat__label">Маршруты</div>
+    <div class="stat__value">{{ chains|length }}</div>
+    <div class="stat__hint">настроенных цепочек</div>
+  </div>
+  <div class="card stat">
+    <div class="stat__label">Виды отпусков</div>
+    <div class="stat__value">{{ types|length }}</div>
+    <div class="stat__hint">доступно сотрудникам</div>
+  </div>
+  <div class="card stat">
+    <div class="stat__label">Периоды</div>
+    <div class="stat__value">{{ periods|length }}</div>
+    <div class="stat__hint">графиков заведено</div>
+  </div>
+</div>
+
+<div class="grid grid--2">
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-sitemap"/></svg>
+      <div class="card__title">Маршруты согласования</div>
+      <div class="card__actions"><a href="{% url 'vacations:manage_chains' %}" class="btn btn--sm btn--ghost">Настроить</a></div>
+    </div>
+    <div class="card__body card__body--flush">
+      {% for chain in chains %}
+      <div class="row" style="padding:11px 16px;border-bottom:1px solid var(--border)">
+        <div style="flex:1;min-width:0">
+          <div class="person__name">{{ chain.name }}{% if chain.is_default %} <span class="badge badge--primary" style="font-size:10px">по умолчанию</span>{% endif %}</div>
+          <div class="person__meta">
+            {% if chain.department %}{{ chain.department.name }}{% else %}все подразделения{% endif %} · {{ chain.step_count }} шаг(ов) · приоритет {{ chain.priority }}
+          </div>
+        </div>
+        {% if not chain.is_active %}<span class="badge badge--muted">выключен</span>{% endif %}
+      </div>
+      {% empty %}
+      <div class="empty" style="padding:24px 16px">
+        <div class="empty__title">Маршруты не настроены</div>
+        <div class="text-sm">Без маршрута заявления не смогут уйти на согласование.</div>
+        <a href="{% url 'vacations:chain_new' %}" class="btn btn--primary btn--sm mt-2">Создать маршрут</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <svg class="icon"><use href="#i-calendar"/></svg>
+      <div class="card__title">Периоды графиков</div>
+      <div class="card__actions"><a href="{% url 'vacations:manage_periods' %}" class="btn btn--sm btn--ghost">Управлять</a></div>
+    </div>
+    <div class="card__body card__body--flush">
+      {% for period in periods %}
+      <div class="row" style="padding:11px 16px;border-bottom:1px solid var(--border)">
+        <div style="flex:1">
+          <div class="person__name">График {{ period.year }}</div>
+          <div class="person__meta">
+            {% if period.submission_deadline %}приём до {{ period.submission_deadline|ru_date }}{% else %}без срока{% endif %}
+          </div>
+        </div>
+        <span class="badge badge--{{ period.status|status_badge }}">{{ period.get_status_display }}</span>
+      </div>
+      {% empty %}
+      <div class="empty" style="padding:24px 16px"><div class="empty__title">Периоды не заведены</div></div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card mt-2">
+  <div class="card__body">
+    <div class="alert alert--info" style="margin:0">
+      <svg class="icon"><use href="#i-info"/></svg>
+      <div>
+        <strong>Как работает согласование.</strong>
+        При отправке заявления портал выбирает маршрут: сначала по подразделению сотрудника, затем по его роли,
+        затем маршрут по умолчанию. Шаги фиксируются в заявлении, поэтому изменения настроек не переписывают
+        уже идущие согласования. Если согласующий не найден — шаг пропускается (если в нём не отключено «Пропускать шаг»).
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

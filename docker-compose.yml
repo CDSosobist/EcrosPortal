@@ -1,0 +1,61 @@
+# Портал ЭКРОС: приложение + PostgreSQL
+# Запуск:  cp .env.example .env  &&  docker compose up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DJANGO_DB_NAME:-ecros_portal}
+      POSTGRES_USER: ${DJANGO_DB_USER:-ecros}
+      POSTGRES_PASSWORD: ${DJANGO_DB_PASSWORD:-ecros}
+      TZ: Europe/Moscow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DJANGO_DB_USER:-ecros} -d ${DJANGO_DB_NAME:-ecros_portal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?задайте DJANGO_SECRET_KEY в .env}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-portal.example.local,localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      DJANGO_DB_ENGINE: postgres
+      DJANGO_DB_NAME: ${DJANGO_DB_NAME:-ecros_portal}
+      DJANGO_DB_USER: ${DJANGO_DB_USER:-ecros}
+      DJANGO_DB_PASSWORD: ${DJANGO_DB_PASSWORD:-ecros}
+      DJANGO_DB_HOST: db
+      DJANGO_DB_PORT: "5432"
+      DJANGO_TIME_ZONE: ${DJANGO_TIME_ZONE:-Europe/Moscow}
+      PORTAL_SITE_NAME: ${PORTAL_SITE_NAME:-Портал ЭКРОС}
+      PORTAL_COMPANY_NAME: ${PORTAL_COMPANY_NAME:-ГК «ЭКРОС»}
+      AD_ENABLED: ${AD_ENABLED:-True}
+      AD_PROVIDER: ${AD_PROVIDER:-ldap}
+      AD_SERVER: ${AD_SERVER:-}
+      AD_PORT: ${AD_PORT:-636}
+      AD_USE_SSL: ${AD_USE_SSL:-True}
+      AD_VERIFY_TLS: ${AD_VERIFY_TLS:-False}
+      AD_BASE_DN: ${AD_BASE_DN:-}
+      AD_USER_SEARCH_BASE: ${AD_USER_SEARCH_BASE:-}
+      AD_GROUP_SEARCH_BASE: ${AD_GROUP_SEARCH_BASE:-}
+      AD_BIND_DN: ${AD_BIND_DN:-}
+      AD_BIND_PASSWORD: ${AD_BIND_PASSWORD:-}
+      AD_DOMAIN_NETBIOS: ${AD_DOMAIN_NETBIOS:-}
+      AD_TIMEOUT: ${AD_TIMEOUT:-12}
+      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-False}
+    ports:
+      - "8000:8000"
+    volumes:
+      - media:/app/var/media
+
+volumes:
+  pgdata:
+  media:

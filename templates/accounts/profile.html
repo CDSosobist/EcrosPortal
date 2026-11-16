@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}Мой профиль — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="page-head__title"><h1>Мой профиль</h1></div>
+    <div class="page-head__sub">Данные загружаются из Active Directory — изменения оформляются через ИТ-отдел или кадры</div>
+  </div>
+  <div class="page-head__actions">
+    <a href="{% url 'vacations:index' %}" class="btn"><svg class="icon"><use href="#i-calendar"/></svg> Мои отпуска</a>
+  </div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <div class="card">
+      <div class="card__body">
+        <div class="profile-head">
+          <span class="{{ employee|avatar_class }} avatar--lg">{{ employee|initials }}</span>
+          <div class="profile-head__text">
+            <div class="profile-name">{{ employee.full_name }}</div>
+            <div class="profile-role">{{ employee.job_title|default:"должность не указана" }}</div>
+            <div class="row mt-1">
+              <span class="badge badge--{{ employee.status|status_badge }}">{{ employee.get_status_display }}</span>
+              {% if employee.department %}<span class="badge"><svg class="icon" style="width:12px;height:12px"><use href="#i-building"/></svg> {{ employee.department.name }}</span>{% endif %}
+              {% for role in roles %}<span class="badge badge--primary">{{ role.name }}</span>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-user"/></svg>
+        <div class="card__title">Личные данные</div>
+      </div>
+      <div class="card__body">
+        <dl class="kv">
+          <dt>Логин домена</dt><dd>{{ employee.username }}</dd>
+          <dt>Табельный номер</dt><dd>{{ employee.employee_no|default:"—" }}</dd>
+          <dt>Электронная почта</dt><dd>{% if employee.email %}<a href="mailto:{{ employee.email }}">{{ employee.email }}</a>{% else %}—{% endif %}</dd>
+          <dt>Внутренний телефон</dt><dd>{{ employee.phone_internal|default:"—" }}</dd>
+          <dt>Мобильный</dt><dd>{{ employee.phone_mobile|default:"—" }}</dd>
+          <dt>Кабинет</dt><dd>{{ employee.office_room|default:"—" }}</dd>
+          <dt>Город</dt><dd>{{ employee.city|default:"—" }}</dd>
+          <dt>Дата приёма</dt><dd>{{ employee.hire_date|ru_date|default:"—" }}</dd>
+          <dt>Руководитель</dt><dd>{% if employee.manager %}<a href="{{ employee.manager.get_absolute_url }}">{{ employee.manager.full_name }}</a>{% else %}—{% endif %}</dd>
+        </dl>
+      </div>
+    </div>
+
+    {% if subordinates %}
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-users"/></svg>
+        <div class="card__title">Мои сотрудники</div>
+        <div class="card__actions"><span class="badge">{{ subordinates|length }}</span></div>
+      </div>
+      <div class="card__body card__body--flush">
+        {% for person in subordinates %}
+        <a href="{{ person.get_absolute_url }}" class="row" style="padding:10px 16px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none">
+          <span class="{{ person|avatar_class }} avatar--sm">{{ person|initials }}</span>
+          <div style="flex:1;min-width:0">
+            <div class="person__name">{{ person.short_name }}</div>
+            <div class="person__meta">{{ person.job_title|default:"—" }}</div>
+          </div>
+          <svg class="icon muted" style="width:14px;height:14px"><use href="#i-chevron-right"/></svg>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-sitemap"/></svg>
+        <div class="card__title">Место в структуре</div>
+      </div>
+      <div class="card__body">
+        {% if employee.department %}
+        <div class="text-sm muted mb-1">Подразделение</div>
+        <div class="mb-2">
+          {% for parent in employee.department.get_ancestors %}
+          <span class="badge">{{ parent.name }}</span>
+          <svg class="icon muted" style="width:12px;height:12px"><use href="#i-chevron-right"/></svg>
+          {% endfor %}
+          <span class="badge badge--primary">{{ employee.department.name }}</span>
+        </div>
+        {% endif %}
+        <div class="text-sm muted mb-1">Цепочка руководителей</div>
+        <ol style="margin:0;padding-left:18px" class="text-sm">
+          {% for manager in manager_chain %}
+          <li><a href="{{ manager.get_absolute_url }}">{{ manager.full_name }}</a> <span class="muted">· {{ manager.job_title }}</span></li>
+          {% empty %}
+          <li class="muted">руководитель не назначен</li>
+          {% endfor %}
+        </ol>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-database"/></svg>
+        <div class="card__title">Синхронизация</div>
+      </div>
+      <div class="card__body">
+        <dl class="kv">
+          <dt>Источник</dt><dd>{{ employee.get_source_display }}</dd>
+          <dt>Обновлено</dt><dd>{{ employee.ad_synced_at|ru_datetime|default:"—" }}</dd>
+          <dt>Групп AD</dt><dd>{{ employee.ad_groups|length }}</dd>
+          <dt>Последний вход</dt><dd>{{ employee.last_login|ru_datetime|default:"—" }}</dd>
+        </dl>
+        {% if employee.ad_groups %}
+        <div class="divider"></div>
+        <div class="chip-list">
+          {% for group in employee.ad_groups|slice:":12" %}<span class="badge" style="font-size:10.5px">{{ group }}</span>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card card--flat">
+      <div class="card__body">
+        <div class="row">
+          <form action="{% url 'accounts:logout' %}" method="post">
+            {% csrf_token %}
+            <button class="btn btn--danger" type="submit"><svg class="icon"><use href="#i-logout"/></svg> Выйти из портала</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

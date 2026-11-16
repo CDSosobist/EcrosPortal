@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+{% block title %}{% if chain %}Маршрут {{ chain.name }}{% else %}Новый маршрут{% endif %} — {{ PORTAL_SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <div class="breadcrumbs">
+      <span><a href="{% url 'vacations:manage' %}">Настройки отпусков</a></span>
+      <span><a href="{% url 'vacations:manage_chains' %}">Маршруты</a></span>
+      <span>{% if chain %}{{ chain.name }}{% else %}новый{% endif %}</span>
+    </div>
+    <div class="page-head__title"><h1>{% if chain %}Редактирование маршрута{% else %}Новый маршрут согласования{% endif %}</h1></div>
+    <div class="page-head__sub">Задайте условия применения и последовательность шагов согласования</div>
+  </div>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="grid grid--sidebar">
+    <div class="card">
+      <div class="card__header">
+        <svg class="icon"><use href="#i-sitemap"/></svg>
+        <div class="card__title">Шаги согласования</div>
+        <div class="card__actions"><span class="muted text-sm">порядок = порядок в цепочке</span></div>
+      </div>
+      <div class="card__body card__body--flush">
+        {{ formset.management_form }}
+        {% if formset.non_form_errors %}
+        <div class="alert alert--error" style="margin:14px">{{ formset.non_form_errors }}</div>
+        {% endif %}
+        <div class="table-wrap">
+          <table class="table table--compact">
+            <thead>
+              <tr>
+                <th style="width:74px">Порядок</th>
+                <th>Название шага</th>
+                <th style="width:190px">Тип согласующего</th>
+                <th style="width:150px">Роль</th>
+                <th style="width:180px">Сотрудник</th>
+                <th style="width:110px">Пропускать</th>
+                <th style="width:56px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for step_form in formset %}
+              <tr>
+                {% for hidden in step_form.hidden_fields %}{{ hidden }}{% endfor %}
+                <td>{{ step_form.order }}</td>
+                <td>{{ step_form.title }}{{ step_form.title.errors }}</td>
+                <td>{{ step_form.approver_kind }}</td>
+                <td>{{ step_form.role }}</td>
+                <td>{{ step_form.user }}</td>
+                <td class="center">{{ step_form.skip_if_missing }}</td>
+                <td class="center">
+                  {% if step_form.instance.pk %}
+                  <label class="checkbox" title="Удалить шаг">{{ step_form.DELETE }}</label>
+                  {% else %}<span class="muted">—</span>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card__footer text-sm muted">
+        Пустые строки игнорируются. «Пропускать» означает: если согласующий не найден (например, руководитель не назначен),
+        шаг пропускается. Снимите флаг — заявление не уйдёт на согласование и покажет ошибку.
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <div class="card__header">
+          <svg class="icon"><use href="#i-settings"/></svg>
+          <div class="card__title">Условия применения</div>
+        </div>
+        <div class="card__body">
+          <div class="field">
+            <label class="label">Название</label>
+            {{ form.name }}{{ form.name.errors }}
+          </div>
+          <div class="field">
+            <label class="label">Код</label>
+            {{ form.code }}{{ form.code.errors }}
+          </div>
+          <div class="field">
+            <label class="label">Описание</label>
+            {{ form.description }}
+          </div>
+          <div class="field">
+            <label class="label">Подразделение</label>
+            {{ form.department }}
+            <div class="help">Если задано, маршрут применяется к сотрудникам подразделения и вложенных отделов.</div>
+          </div>
+          <div class="field">
+            <label class="label">Роли заявителя</label>
+            {{ form.applies_to_roles }}
+            <div class="help">Применяется, если подразделение не задано.</div>
+          </div>
+          <div class="field">
+            <label class="label">Виды отпуска</label>
+            {{ form.vacation_types }}
+            <div class="help">Пусто — для всех видов.</div>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label class="label">Приоритет</label>
+              {{ form.priority }}
+            </div>
+            <div class="field" style="padding-top:24px">
+              <label class="checkbox">{{ form.is_default }} Маршрут по умолчанию</label>
+              <label class="checkbox">{{ form.is_active }} Активен</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card--flat">
+        <div class="card__body">
+          <button class="btn btn--primary btn--block" type="submit">
+            <svg class="icon"><use href="#i-check"/></svg> Сохранить маршрут
+          </button>
+          <a href="{% url 'vacations:manage_chains' %}" class="btn btn--ghost btn--block mt-1">Отмена</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
