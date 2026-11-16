@@ -68,10 +68,10 @@ ROLES = [
 ]
 
 VACATION_TYPES = [
-    ("annual", "Ежегодный оплачиваемый отпуск", 28, True, True, "#2f5bd7", 10),
-    ("additional", "Дополнительный оплачиваемый отпуск", 0, True, True, "#0e7490", 20),
-    ("unpaid", "Отпуск без сохранения заработной платы", 0, False, True, "#94a3b8", 30),
-    ("study", "Учебный отпуск", 0, False, True, "#7c3aed", 40),
+    ("annual", "Ежегодный оплачиваемый отпуск", 28, True, True, "#00875c", 10),
+    ("additional", "Дополнительный оплачиваемый отпуск", 0, True, True, "#0c6d4f", 20),
+    ("unpaid", "Отпуск без сохранения заработной платы", 0, False, True, "#8e979e", 30),
+    ("study", "Учебный отпуск", 0, False, True, "#b16c00", 40),
 ]
 
 NEWS = [
@@ -654,9 +654,9 @@ class Command(BaseCommand):
     def _seed_content(self):
         categories = {}
         for name, code, color in (
-            ("Компания", "company", "#2f5bd7"),
-            ("Кадры", "hr", "#0f9d58"),
-            ("ИТ", "it", "#0e7490"),
+            ("Компания", "company", "#00875c"),
+            ("Кадры", "hr", "#00a651"),
+            ("ИТ", "it", "#0f7b8f"),
         ):
             categories[name], _ = NewsCategory.objects.get_or_create(
                 code=code, defaults={"name": name, "color": color, "sort_order": 10}
