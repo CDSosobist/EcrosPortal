@@ -121,28 +121,32 @@ small, .text-sm { font-size: 12.5px; }
 .sidebar__brand {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 10px;
-    padding: 22px 20px 18px;
+    width: 100%;
+    padding: 18px 12px 16px;
     color: #fff;
 }
 /* Логотип кладём на белую подложку: в фирменном SVG есть белые элементы,
-   на тёмно-зелёной панели они «вырезали» бы фон. */
+   на тёмно-зелёной панели они «вырезали» бы фон. Подложка и логотип
+   растянуты на всю ширину боковой панели. */
 .sidebar__brand-mark {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: center;
+    width: 100%;
     background: #fff;
-    border-radius: 10px;
-    padding: 9px 12px;
+    border-radius: 12px;
+    padding: 14px 16px;
     box-shadow: 0 6px 18px -12px rgba(0, 0, 0, .55);
 }
 .sidebar__brand-mark img {
     display: block;
-    height: 24px;
-    width: auto;
+    width: 100%;
+    height: auto;
 }
 .sidebar__title { font-size: 15px; font-weight: 650; color: #fff; line-height: 1.2; }
-.sidebar__subtitle { font-size: 11.5px; color: #7fa694; }
+.sidebar__subtitle { width: 100%; font-size: 11.5px; color: #7fa694; text-align: center; letter-spacing: .01em; }
 
 .nav { padding: 6px 12px 24px; }
 .nav__group { margin-top: 14px; }
