@@ -1,4 +1,4 @@
-"""Настройки корпоративного портала ЭКРОС.
+"""Настройки корпоративного портала «ЭКРОСХИМ».
 
 Все секреты и параметры интеграции с Active Directory вынесены в переменные
 окружения (файл .env), чтобы один и тот же артефакт разворачивался в разных
@@ -36,8 +36,8 @@ ALLOWED_HOSTS = env_list(
 )
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
-PORTAL_SITE_NAME = env("PORTAL_SITE_NAME", "Портал ЭКРОС")
-PORTAL_COMPANY_NAME = env("PORTAL_COMPANY_NAME", "ГК «ЭКРОС»")
+PORTAL_SITE_NAME = env("PORTAL_SITE_NAME", "Портал ЭКРОСХИМ")
+PORTAL_COMPANY_NAME = env("PORTAL_COMPANY_NAME", "ЭКРОСХИМ")
 PORTAL_SUPPORT_EMAIL = env("PORTAL_SUPPORT_EMAIL", "portal@example.local")
 
 # ---------------------------------------------------------------------------

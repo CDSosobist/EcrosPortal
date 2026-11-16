@@ -18,5 +18,5 @@ handler403 = "apps.portal.views.error_403"
 handler404 = "apps.portal.views.error_404"
 
 admin.site.site_header = f"{settings.PORTAL_COMPANY_NAME} — администрирование"
-admin.site.site_title = "Портал ЭКРОС"
+admin.site.site_title = "Портал ЭКРОСХИМ"
 admin.site.index_title = "Управление порталом"

@@ -6,7 +6,10 @@
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}{{ PORTAL_SITE_NAME }}{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2300875c'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' fill='white' text-anchor='middle'%3EЭ%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="{% static 'img/favicon.ico' %}" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon-32x32.png' %}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{% static 'img/favicon-16x16.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'img/apple-touch-icon.png' %}">
 </head>
 <body>
 {% include "partials/icons.html" %}
@@ -14,11 +17,10 @@
 <div class="app">
   <aside class="sidebar">
     <a href="{% url 'portal:dashboard' %}" class="sidebar__brand" style="text-decoration:none">
-      <span class="sidebar__logo">Э</span>
-      <span>
-        <span class="sidebar__title">{{ PORTAL_COMPANY_NAME }}</span>
-        <span class="sidebar__subtitle">Корпоративный портал</span>
+      <span class="sidebar__brand-mark">
+        <img src="{% static 'img/logo.svg' %}" alt="{{ PORTAL_COMPANY_NAME }}" width="132" height="29">
       </span>
+      <span class="sidebar__subtitle">Корпоративный портал</span>
     </a>
 
     <nav class="nav">

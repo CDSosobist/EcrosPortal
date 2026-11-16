@@ -120,19 +120,26 @@ small, .text-sm { font-size: 12.5px; }
 
 .sidebar__brand {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 20px 20px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 22px 20px 18px;
     color: #fff;
 }
-.sidebar__logo {
-    width: 40px; height: 40px;
-    border-radius: 11px;
-    background: linear-gradient(135deg, #00a651 0%, #00875c 60%, #006b49 100%);
-    display: grid; place-items: center;
-    font-weight: 700; font-size: 17px; letter-spacing: .5px;
-    color: #fff;
-    box-shadow: 0 6px 18px -8px #00875c;
+/* Логотип кладём на белую подложку: в фирменном SVG есть белые элементы,
+   на тёмно-зелёной панели они «вырезали» бы фон. */
+.sidebar__brand-mark {
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    border-radius: 10px;
+    padding: 9px 12px;
+    box-shadow: 0 6px 18px -12px rgba(0, 0, 0, .55);
+}
+.sidebar__brand-mark img {
+    display: block;
+    height: 24px;
+    width: auto;
 }
 .sidebar__title { font-size: 15px; font-weight: 650; color: #fff; line-height: 1.2; }
 .sidebar__subtitle { font-size: 11.5px; color: #7fa694; }
@@ -608,7 +615,8 @@ select.input { appearance: none; background-image: url("data:image/svg+xml;chars
         var(--bg);
 }
 .login-card { width: 100%; max-width: 408px; }
-.login-card__logo { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.login-card__logo { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 22px; }
+.login-card__mark { display: block; height: 40px; width: auto; }
 .hint-box { background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 10px; padding: 11px 13px; font-size: 12.5px; color: var(--text-soft); }
 
 .icon { width: 20px; height: 20px; display: inline-block; vertical-align: -0.16em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }

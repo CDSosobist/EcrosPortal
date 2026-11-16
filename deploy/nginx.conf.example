@@ -1,4 +1,4 @@
-# Портал ЭКРОС: nginx перед Gunicorn
+# Портал ЭКРОСХИМ: nginx перед Gunicorn
 # sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/ecros-portal
 
 upstream ecros_portal {
