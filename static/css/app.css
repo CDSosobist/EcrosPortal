@@ -690,9 +690,36 @@ select.input { appearance: none; background-image: url("data:image/svg+xml;chars
         radial-gradient(circle at 85% 82%, #eef7f2 0, transparent 44%),
         var(--bg);
 }
-.login-card { width: 100%; max-width: 408px; }
-.login-card__logo { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 22px; }
+.login-card {
+    width: 100%;
+    max-width: 408px;
+    margin-inline: auto;
+}
+/* Логотип и подпись по центру карточки */
+.login-card__logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 22px;
+}
 .login-card__mark { display: block; height: 40px; width: auto; }
+
+/* Содержимое формы входа выровнено по центру: подписи полей, тексты, подсказки.
+   Сами поля — на всю ширину, вводимый текст внутри остаётся слева. */
+.login-card .card__body { text-align: center; }
+.login-card .label { text-align: center; }
+.login-card .input { text-align: left; }
+.login-card .help { text-align: center; }
+.login-card .alert { justify-content: center; text-align: center; }
+.login-card .hint-box { text-align: center; }
+.login-card .checkbox {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+.login-card .field { margin-bottom: 14px; }
 .hint-box { background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 10px; padding: 11px 13px; font-size: 12.5px; color: var(--text-soft); }
 
 .icon { width: 20px; height: 20px; display: inline-block; vertical-align: -0.16em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
