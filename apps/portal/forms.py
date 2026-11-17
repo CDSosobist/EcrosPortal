@@ -2,13 +2,50 @@
 from __future__ import annotations
 
 from django import forms
+from django.conf import settings
 
 from apps.accounts.models import Employee
 
 from .models import KbCategory, KnowledgeArticle, NewsCategory, NewsPost, ServiceTicket, TicketComment
 
 
+class MultipleFileInput(forms.ClearableFileInput):
+    """Поле выбора нескольких файлов (Django не даёт его из коробки)."""
+
+    allow_multiple_selected = True
+
+    def __init__(self, attrs=None):
+        super().__init__(attrs)
+        self.attrs.setdefault("multiple", True)
+
+
+class MultipleFileField(forms.FileField):
+    """Файловое поле, возвращающее список загруженных файлов."""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("required", False)
+        kwargs.setdefault("widget", MultipleFileInput(attrs={"class": "file-input"}))
+        kwargs.setdefault(
+            "help_text",
+            (
+                f"До {settings.PORTAL_ATTACHMENT_MAX_FILES} файлов, "
+                f"каждый не больше {settings.PORTAL_ATTACHMENT_MAX_MB} МБ"
+            ),
+        )
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        single_clean = super().clean
+        if not data:
+            return []
+        if isinstance(data, (list, tuple)):
+            return [single_clean(item, initial) for item in data]
+        return [single_clean(data, initial)]
+
+
 class TicketForm(forms.ModelForm):
+    attachments = MultipleFileField(label="Вложения")
+
     class Meta:
         model = ServiceTicket
         fields = ("category", "priority", "subject", "description")
@@ -27,6 +64,8 @@ class TicketForm(forms.ModelForm):
 
 
 class TicketCommentForm(forms.ModelForm):
+    attachments = MultipleFileField(label="Приложить файлы")
+
     class Meta:
         model = TicketComment
         fields = ("body", "is_internal")

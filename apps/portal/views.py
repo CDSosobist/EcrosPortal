@@ -1,13 +1,15 @@
 """Страницы портала: главная, справочник, новости, база знаний, заявки, поиск."""
 from __future__ import annotations
 
+import os
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, F, Q
-from django.http import Http404, JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -16,8 +18,10 @@ from apps.accounts.models import Department, Employee
 from apps.vacations import services as vacation_services
 from apps.vacations.models import VacationRequest
 
+from .attachments import save_attachments, validate_batch
 from .forms import KbArticleForm, NewsForm, TicketCommentForm, TicketForm, TicketStatusForm
 from .models import (
+    Attachment,
     KbCategory,
     KnowledgeArticle,
     NewsCategory,
@@ -33,6 +37,21 @@ PAGE_SIZE = 25
 
 def _can_manage_content(user: Employee) -> bool:
     return user.is_portal_admin or user.is_hr
+
+
+def _ticket_for_viewer(viewer: Employee, pk: int):
+    """Заявка и признак «исполнитель» — единая проверка доступа для всех вьюх."""
+    ticket = get_object_or_404(
+        ServiceTicket.objects.select_related("requester", "assignee"), pk=pk
+    )
+    is_agent = _can_manage_content(viewer) or ticket.assignee_id == viewer.pk
+    if not (is_agent or ticket.requester_id == viewer.pk):
+        raise Http404("Заявка не найдена")
+    return ticket, is_agent
+
+
+def _attachment_visible(attachment: Attachment, is_agent: bool) -> bool:
+    return is_agent or not attachment.is_internal
 
 
 # ---------------------------------------------------------------------------
@@ -328,7 +347,10 @@ def kb_detail(request, slug: str):
 def tickets(request):
     viewer = request.user
     is_agent = _can_manage_content(viewer)
-    qs = ServiceTicket.objects.select_related("requester", "assignee")
+    qs = (
+        ServiceTicket.objects.select_related("requester", "assignee")
+        .annotate(files_count=Count("attachments", distinct=True))
+    )
     if not is_agent:
         qs = qs.filter(Q(requester=viewer) | Q(assignee=viewer))
     status = request.GET.get("status", "")
@@ -359,45 +381,74 @@ def tickets(request):
 @login_required
 def ticket_create(request):
     if request.method == "POST":
-        form = TicketForm(request.POST)
+        form = TicketForm(request.POST, request.FILES)
         if form.is_valid():
-            ticket = form.save(commit=False)
-            ticket.requester = request.user
-            if _can_manage_content(request.user):
-                ticket.status = ServiceTicket.Status.IN_PROGRESS
-                ticket.assignee = request.user
-            ticket.save()
-            messages.success(request, f"Заявка {ticket.number} создана. Исполнитель свяжется с вами.")
-            return redirect("portal:ticket_detail", pk=ticket.pk)
+            files = form.cleaned_data.get("attachments") or []
+            file_errors = validate_batch(files)
+            if file_errors:
+                for error in file_errors:
+                    form.add_error("attachments", error)
+            else:
+                ticket = form.save(commit=False)
+                ticket.requester = request.user
+                if _can_manage_content(request.user):
+                    ticket.status = ServiceTicket.Status.IN_PROGRESS
+                    ticket.assignee = request.user
+                ticket.save()
+                if files:
+                    save_attachments(files, ticket=ticket, uploaded_by=request.user)
+                messages.success(
+                    request,
+                    f"Заявка {ticket.number} создана. Исполнитель свяжется с вами.",
+                )
+                return redirect("portal:ticket_detail", pk=ticket.pk)
         messages.error(request, "Проверьте поля формы.")
     else:
         form = TicketForm()
-    return render(request, "portal/ticket_form.html", {"form": form})
+    return render(
+        request,
+        "portal/ticket_form.html",
+        {
+            "form": form,
+            "max_files": settings.PORTAL_ATTACHMENT_MAX_FILES,
+            "max_mb": settings.PORTAL_ATTACHMENT_MAX_MB,
+            "allowed_extensions": settings.PORTAL_ATTACHMENT_EXTENSIONS,
+        },
+    )
 
 
 @login_required
 def ticket_detail(request, pk: int):
     viewer = request.user
-    ticket = get_object_or_404(
-        ServiceTicket.objects.select_related("requester", "assignee"), pk=pk
+    ticket, is_agent = _ticket_for_viewer(viewer, pk)
+    comments = (
+        ticket.comments.select_related("author").prefetch_related("attachments__uploaded_by").all()
     )
-    is_agent = _can_manage_content(viewer) or ticket.assignee_id == viewer.pk
-    if not (is_agent or ticket.requester_id == viewer.pk):
-        raise Http404("Заявка не найдена")
-    comments = ticket.comments.select_related("author").all()
     if not is_agent:
         comments = comments.filter(is_internal=False)
+    attachments = ticket.attachments.filter(comment__isnull=True).select_related("uploaded_by")
+    if not is_agent:
+        attachments = attachments.filter(is_internal=False)
     return render(
         request,
         "portal/ticket_detail.html",
         {
             "ticket": ticket,
             "comments": comments,
+            "attachments": attachments,
+            "attachment_count": attachments.count() + sum(
+                len([a for a in comment.attachments.all() if _attachment_visible(a, is_agent)])
+                for comment in comments
+            ),
             "comment_form": TicketCommentForm(),
             "status_form": TicketStatusForm(
                 initial={"status": ticket.status, "assignee": ticket.assignee_id}
             ),
             "is_agent": is_agent,
+            "can_attach": ticket.is_open or is_agent,
+            "max_files": settings.PORTAL_ATTACHMENT_MAX_FILES,
+            "max_mb": settings.PORTAL_ATTACHMENT_MAX_MB,
+            "allowed_extensions": settings.PORTAL_ATTACHMENT_EXTENSIONS,
         },
     )
 
@@ -406,17 +457,28 @@ def ticket_detail(request, pk: int):
 @require_POST
 def ticket_comment(request, pk: int):
     viewer = request.user
-    ticket = get_object_or_404(ServiceTicket, pk=pk)
-    is_agent = _can_manage_content(viewer) or ticket.assignee_id == viewer.pk
-    if not (is_agent or ticket.requester_id == viewer.pk):
-        raise Http404("Заявка не найдена")
-    form = TicketCommentForm(request.POST)
+    ticket, is_agent = _ticket_for_viewer(viewer, pk)
+    form = TicketCommentForm(request.POST, request.FILES)
     if form.is_valid():
+        files = form.cleaned_data.get("attachments") or []
+        file_errors = validate_batch(files)
+        if file_errors:
+            for error in file_errors:
+                messages.error(request, error)
+            return redirect("portal:ticket_detail", pk=ticket.pk)
         comment = form.save(commit=False)
         comment.ticket = ticket
         comment.author = viewer
         comment.is_internal = bool(form.cleaned_data.get("is_internal")) and is_agent
         comment.save()
+        if files:
+            save_attachments(
+                files,
+                ticket=ticket,
+                comment=comment,
+                uploaded_by=viewer,
+                is_internal=comment.is_internal,
+            )
         if is_agent and ticket.requester_id != viewer.pk:
             Notification.push(
                 ticket.requester,
@@ -436,8 +498,8 @@ def ticket_comment(request, pk: int):
 @require_POST
 def ticket_update(request, pk: int):
     viewer = request.user
-    ticket = get_object_or_404(ServiceTicket, pk=pk)
-    if not (_can_manage_content(viewer) or ticket.assignee_id == viewer.pk):
+    ticket, is_agent = _ticket_for_viewer(viewer, pk)
+    if not is_agent:
         raise Http404("Заявка не найдена")
     form = TicketStatusForm(request.POST)
     if form.is_valid():
@@ -461,6 +523,82 @@ def ticket_update(request, pk: int):
     else:
         messages.error(request, "Проверьте данные формы.")
     return redirect("portal:ticket_detail", pk=ticket.pk)
+
+
+@login_required
+@require_POST
+def ticket_attach(request, pk: int):
+    """Догрузка файлов в уже созданную заявку."""
+    ticket, is_agent = _ticket_for_viewer(request.user, pk)
+    if not ticket.is_open and not is_agent:
+        messages.error(
+            request, "Заявка закрыта — приложить файлы можно только в новой заявке."
+        )
+        return redirect("portal:ticket_detail", pk=ticket.pk)
+
+    files = request.FILES.getlist("files")
+    if not files:
+        messages.error(request, "Выберите хотя бы один файл.")
+        return redirect("portal:ticket_detail", pk=ticket.pk)
+
+    errors = validate_batch(files)
+    if errors:
+        for error in errors:
+            messages.error(request, error)
+        return redirect("portal:ticket_detail", pk=ticket.pk)
+
+    saved = save_attachments(
+        files,
+        ticket=ticket,
+        uploaded_by=request.user,
+        is_internal=is_agent and request.POST.get("is_internal") == "on",
+    )
+    messages.success(request, f"Приложено файлов: {len(saved)}.")
+    if is_agent and ticket.requester_id != request.user.pk:
+        Notification.push(
+            ticket.requester,
+            title=f"Новые файлы по заявке {ticket.number}",
+            body=", ".join(a.original_name for a in saved)[:300],
+            url=ticket.get_absolute_url(),
+            kind=Notification.Kind.TICKET,
+            actor=request.user,
+        )
+    return redirect("portal:ticket_detail", pk=ticket.pk)
+
+
+@login_required
+def attachment_download(request, pk: int):
+    """Отдаёт файл только тем, кто вправе видеть заявку.
+
+    Файлы не лежат в MEDIA_ROOT, поэтому это единственный путь к ним.
+    Ответ всегда отдаётся как attachment: HTML/SVG в теле не исполнятся в браузере.
+    """
+    attachment = get_object_or_404(
+        Attachment.objects.select_related("ticket"), pk=pk
+    )
+    ticket = attachment.ticket
+    is_agent = _can_manage_content(request.user) or ticket.assignee_id == request.user.pk
+    if not (is_agent or ticket.requester_id == request.user.pk):
+        raise Http404("Файл не найден")
+    if attachment.is_internal and not is_agent:
+        raise Http404("Файл не найден")
+    if not attachment.file or not attachment.file.name:
+        raise Http404("Файл не найден")
+    try:
+        path = attachment.file.path
+    except (NotImplementedError, ValueError):  # pragma: no cover - не файловое хранилище
+        raise Http404("Файл не найден")
+    if not os.path.isfile(path):
+        raise Http404("Файл не найден")
+
+    response = FileResponse(
+        open(path, "rb"), as_attachment=True, filename=attachment.original_name
+    )
+    if attachment.content_type:
+        response["Content-Type"] = attachment.content_type
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 # ---------------------------------------------------------------------------

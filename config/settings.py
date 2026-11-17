@@ -51,9 +51,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.humanize",
-    "apps.accounts",
-    "apps.vacations",
-    "apps.portal",
+    "apps.accounts.apps.AccountsConfig",
+    "apps.vacations.apps.VacationsConfig",
+    "apps.portal.apps.PortalConfig",
 ]
 
 MIDDLEWARE = [
@@ -214,6 +214,34 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "var" / "media"
+
+# ---------------------------------------------------------------------------
+# Вложения заявок
+# ---------------------------------------------------------------------------
+# Файлы заявок хранятся ВНЕ MEDIA_ROOT: они не должны быть доступны по прямой
+# ссылке, скачивание идёт только через view с проверкой прав (portal:attachment_download).
+PORTAL_ATTACHMENTS_ROOT = Path(
+    env("PORTAL_ATTACHMENTS_ROOT", str(BASE_DIR / "var" / "attachments"))
+)
+PORTAL_ATTACHMENTS_ROOT.mkdir(parents=True, exist_ok=True)
+
+PORTAL_ATTACHMENT_MAX_MB = env_int("PORTAL_ATTACHMENT_MAX_MB", 10)
+PORTAL_ATTACHMENT_MAX_FILES = env_int("PORTAL_ATTACHMENT_MAX_FILES", 5)
+# Белый список расширений. Исполняемые файлы, скрипты, HTML и SVG запрещены
+# намеренно: SVG/HTML — это вектор для XSS в обход проверки содержимого.
+PORTAL_ATTACHMENT_EXTENSIONS = [
+    ext.lower() for ext in env_list(
+        "PORTAL_ATTACHMENT_EXTENSIONS",
+        default=(
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "rtf",
+            "txt", "csv", "log", "eml", "msg",
+            "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "tif", "tiff",
+            "zip", "rar", "7z", "tar", "gz",
+        ),
+    )
+]
+# Права на загруженные файлы: только владелец процесса и группа
+FILE_UPLOAD_PERMISSIONS = 0o640
 
 MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 

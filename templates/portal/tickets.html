@@ -63,7 +63,14 @@
         {% for ticket in tickets %}
         <tr>
           <td class="muted text-sm nowrap">{{ ticket.number }}</td>
-          <td><a href="{{ ticket.get_absolute_url }}" style="font-weight:600;color:inherit">{{ ticket.subject|truncatechars:64 }}</a></td>
+          <td>
+            <a href="{{ ticket.get_absolute_url }}" style="font-weight:600;color:inherit">{{ ticket.subject|truncatechars:64 }}</a>
+            {% if ticket.files_count %}
+            <span class="badge badge--muted" style="font-size:10px" title="Вложений: {{ ticket.files_count }}">
+              <svg class="icon" style="width:11px;height:11px"><use href="#i-paperclip"/></svg> {{ ticket.files_count }}
+            </span>
+            {% endif %}
+          </td>
           <td class="text-sm soft">{{ ticket.get_category_display }}</td>
           <td><span class="badge badge--{{ ticket.priority|status_badge }}">{{ ticket.get_priority_display }}</span></td>
           <td class="text-sm">{{ ticket.requester.short_name }}</td>

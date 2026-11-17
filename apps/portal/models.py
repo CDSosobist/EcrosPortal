@@ -1,6 +1,9 @@
 """Модели портала: новости, база знаний, заявки, уведомления, ссылки."""
 from __future__ import annotations
 
+import uuid
+from pathlib import Path
+
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
@@ -8,6 +11,8 @@ from django.utils.text import slugify
 
 from apps.accounts.models import Employee
 from apps.accounts.utils import translit
+
+from .storage import attachment_storage
 
 
 class Notification(models.Model):
@@ -322,6 +327,85 @@ class TicketComment(models.Model):
     def __str__(self) -> str:
         return f"{self.ticket.number}: {self.body[:40]}"
 
+
+def attachment_upload_to(instance: "Attachment", filename: str) -> str:
+    """Случайное имя файла на диске: оригинал хранится в базе.
+
+    Так имена не предсказуемы, а исходное название не попадает в путь
+    (защита от обхода каталогов и «красивых» ссылок на чужие файлы).
+    """
+    suffix = Path(filename or "").suffix.lower()
+    suffix = suffix[:12] if suffix.isascii() and suffix.replace(".", "").isalnum() else ""
+    return f"tickets/{instance.ticket_id}/{uuid.uuid4().hex}{suffix}"
+
+
+class Attachment(models.Model):
+    """Файл, приложенный к заявке или к комментарию в ней."""
+
+    ticket = models.ForeignKey(
+        ServiceTicket, verbose_name="Заявка", on_delete=models.CASCADE, related_name="attachments"
+    )
+    comment = models.ForeignKey(
+        TicketComment,
+        verbose_name="Комментарий",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+    file = models.FileField("Файл", storage=attachment_storage, upload_to=attachment_upload_to, max_length=255)
+    original_name = models.CharField("Имя файла", max_length=255)
+    content_type = models.CharField("Тип содержимого", max_length=120, blank=True)
+    size = models.PositiveBigIntegerField("Размер, байт", default=0)
+    is_internal = models.BooleanField(
+        "Видно только исполнителям", default=False,
+        help_text="Включается автоматически для файлов во внутренних комментариях.",
+    )
+    uploaded_by = models.ForeignKey(
+        Employee,
+        verbose_name="Загрузил",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="ticket_attachments",
+    )
+    created_at = models.DateTimeField("Загружен", default=timezone.now)
+
+    class Meta:
+        verbose_name = "Вложение заявки"
+        verbose_name_plural = "Вложения заявок"
+        ordering = ("created_at", "id")
+        indexes = [models.Index(fields=["ticket", "comment"])]
+
+    def __str__(self) -> str:
+        return self.original_name
+
+    @property
+    def download_url(self) -> str:
+        return reverse("portal:attachment_download", args=[self.pk])
+
+    @property
+    def extension(self) -> str:
+        return Path(self.original_name).suffix.lower().lstrip(".")
+
+    @property
+    def is_image(self) -> bool:
+        return self.content_type in {"image/png", "image/jpeg", "image/gif", "image/webp"}
+
+    @property
+    def icon(self) -> str:
+        """Имя иконки из SVG-спрайта для списка вложений."""
+        if self.is_image:
+            return "image"
+        if self.extension in {"xls", "xlsx", "ods", "csv"}:
+            return "table"
+        if self.extension in {"doc", "docx", "odt", "rtf", "txt", "pdf", "log"}:
+            return "file"
+        if self.extension in {"zip", "rar", "7z", "tar", "gz"}:
+            return "database"
+        if self.extension in {"eml", "msg"}:
+            return "mail"
+        return "paperclip"
 
 class QuickLink(models.Model):
     """Плитка полезной ссылки на дашборде."""

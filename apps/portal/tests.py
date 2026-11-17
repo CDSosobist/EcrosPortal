@@ -1,12 +1,18 @@
 """Тесты портала: доступ, справочник, новости, база знаний, заявки, уведомления."""
 from __future__ import annotations
 
-from django.test import TestCase
+import shutil
+import tempfile
+from pathlib import Path
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.accounts.models import Department, Employee, Role
 
 from .models import (
+    Attachment,
     KbCategory,
     KnowledgeArticle,
     NewsCategory,
@@ -302,3 +308,230 @@ class TemplateHelpersTest(TestCase):
         self.assertEqual(days_word(3), "3 дня")
         self.assertEqual(days_word(11), "11 дней")
         self.assertEqual(days_word(28), "28 дней")
+
+
+class AttachmentTest(PortalTestCase):
+    """Вложения заявок: загрузка, проверки, доступ и уборка файлов."""
+
+    def setUp(self):
+        self.storage_root = Path(tempfile.mkdtemp(prefix="ecros-attachments-"))
+        self.addCleanup(shutil.rmtree, self.storage_root, ignore_errors=True)
+        self.settings_override = override_settings(
+            PORTAL_ATTACHMENTS_ROOT=self.storage_root,
+            PORTAL_ATTACHMENT_MAX_MB=1,
+            PORTAL_ATTACHMENT_MAX_FILES=3,
+        )
+        self.settings_override.enable()
+        self.addCleanup(self.settings_override.disable)
+        self.client.force_login(self.user)
+
+    # -- вспомогательное --------------------------------------------------
+    def make_file(self, name="отчёт.txt", content=b"hello world", content_type="text/plain"):
+        return SimpleUploadedFile(name, content, content_type=content_type)
+
+    def create_ticket_with_file(self, files=None, **extra):
+        payload = {
+            "category": ServiceTicket.Category.IIT if hasattr(ServiceTicket.Category, "IIT") else ServiceTicket.Category.IT,
+            "priority": ServiceTicket.Priority.NORMAL,
+            "subject": "Заявка с вложением",
+            "description": "Подробности во вложении",
+            "attachments": files if files is not None else [self.make_file()],
+        }
+        payload.update(extra)
+        return self.client.post(reverse("portal:ticket_new"), payload)
+
+    def disk_files(self):
+        return [p for p in self.storage_root.rglob("*") if p.is_file()]
+
+    # -- загрузка ---------------------------------------------------------
+    def test_upload_on_ticket_creation(self):
+        response = self.create_ticket_with_file()
+        self.assertEqual(response.status_code, 302)
+        ticket = ServiceTicket.objects.get(subject="Заявка с вложением")
+        attachment = ticket.attachments.get()
+        self.assertEqual(attachment.original_name, "отчёт.txt")
+        self.assertEqual(attachment.content_type, "text/plain")
+        self.assertEqual(attachment.size, 11)
+        self.assertEqual(attachment.uploaded_by, self.user)
+        self.assertIsNone(attachment.comment)
+        self.assertFalse(attachment.is_internal)
+        self.assertEqual(len(self.disk_files()), 1)
+        self.assertIn(f"tickets/{ticket.pk}/", attachment.file.name)
+
+    def test_several_files_at_once(self):
+        files = [self.make_file("первый.txt", b"1"), self.make_file("второй.pdf", b"2", "application/pdf")]
+        response = self.create_ticket_with_file(files=files)
+        self.assertEqual(response.status_code, 302)
+        ticket = ServiceTicket.objects.get(subject="Заявка с вложением")
+        self.assertEqual(ticket.attachments.count(), 2)
+        names = sorted(ticket.attachments.values_list("original_name", flat=True))
+        self.assertEqual(names, ["второй.pdf", "первый.txt"])
+
+    def test_too_large_file_rejected(self):
+        big = self.make_file("большой.pdf", b"x" * (1024 * 1024 + 10), "application/pdf")
+        response = self.create_ticket_with_file(files=[big])
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "больше 1 МБ")
+        self.assertFalse(ServiceTicket.objects.filter(subject="Заявка с вложением").exists())
+        self.assertEqual(Attachment.objects.count(), 0)
+        self.assertEqual(self.disk_files(), [])
+
+    def test_forbidden_extension_rejected(self):
+        response = self.create_ticket_with_file(files=[self.make_file("virus.exe", b"MZ")])
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "запрещён")
+        self.assertEqual(Attachment.objects.count(), 0)
+
+    def test_empty_file_rejected(self):
+        response = self.create_ticket_with_file(files=[self.make_file("пустой.txt", b"")])
+        self.assertEqual(response.status_code, 200)
+        # пустой файл отсекает уже стандартная валидация Django
+        self.assertContains(response, "пуст")
+        self.assertEqual(Attachment.objects.count(), 0)
+
+    def test_files_count_limit(self):
+        files = [self.make_file(f"файл{i}.txt", b"1") for i in range(4)]
+        response = self.create_ticket_with_file(files=files)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "не более 3 файлов")
+        self.assertEqual(Attachment.objects.count(), 0)
+
+    def test_attach_to_existing_ticket(self):
+        response = self.client.post(
+            reverse("portal:ticket_attach", args=[self.ticket.pk]),
+            {"files": [self.make_file("скрин.png", b"png-bytes", "image/png")]},
+        )
+        self.assertEqual(response.status_code, 302)
+        attachment = self.ticket.attachments.get()
+        self.assertEqual(attachment.original_name, "скрин.png")
+        self.assertEqual(attachment.icon, "image")
+
+    def test_comment_with_attachment(self):
+        response = self.client.post(
+            reverse("portal:ticket_comment", args=[self.ticket.pk]),
+            {"body": "Смотрите вложение", "attachments": [self.make_file()]},
+        )
+        self.assertEqual(response.status_code, 302)
+        comment = self.ticket.comments.get()
+        attachment = comment.attachments.get()
+        self.assertEqual(attachment.ticket, self.ticket)
+        self.assertFalse(attachment.is_internal)
+
+    def test_closed_ticket_rejects_requester_upload(self):
+        self.ticket.status = ServiceTicket.Status.CLOSED
+        self.ticket.save(update_fields=["status"])
+        response = self.client.post(
+            reverse("portal:ticket_attach", args=[self.ticket.pk]),
+            {"files": [self.make_file()]},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.ticket.attachments.count(), 0)
+
+    def test_agent_can_upload_to_closed_ticket(self):
+        self.ticket.status = ServiceTicket.Status.CLOSED
+        self.ticket.save(update_fields=["status"])
+        self.client.force_login(self.hr)
+        self.client.post(
+            reverse("portal:ticket_attach", args=[self.ticket.pk]),
+            {"files": [self.make_file("акт.txt", b"act")]},
+        )
+        self.assertEqual(self.ticket.attachments.count(), 1)
+
+    # -- скачивание и права -----------------------------------------------
+    def test_requester_downloads_file(self):
+        self.create_ticket_with_file(files=[self.make_file("акт.txt", b"payload")])
+        attachment = Attachment.objects.get()
+        response = self.client.get(attachment.download_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"payload")
+        disposition = response.headers["Content-Disposition"]
+        self.assertIn("attachment", disposition)
+        self.assertIn("utf-8", disposition)  # имя файла закодировано для кириллицы
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+
+    def test_colleague_cannot_download(self):
+        self.create_ticket_with_file()
+        attachment = Attachment.objects.get()
+        self.client.force_login(self.colleague)
+        self.assertEqual(self.client.get(attachment.download_url).status_code, 404)
+
+    def test_agent_can_download(self):
+        self.create_ticket_with_file()
+        attachment = Attachment.objects.get()
+        self.client.force_login(self.hr)
+        self.assertEqual(self.client.get(attachment.download_url).status_code, 200)
+
+    def test_anonymous_cannot_download(self):
+        self.create_ticket_with_file()
+        attachment = Attachment.objects.get()
+        self.client.logout()
+        response = self.client.get(attachment.download_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login/", response.headers["Location"])
+
+    def test_internal_attachment_hidden_from_requester(self):
+        self.client.force_login(self.hr)
+        self.client.post(
+            reverse("portal:ticket_attach", args=[self.ticket.pk]),
+            {"files": [self.make_file("внутренний.txt", b"secret")], "is_internal": "on"},
+        )
+        attachment = self.ticket.attachments.get()
+        self.assertTrue(attachment.is_internal)
+
+        # исполнитель видит и скачивает
+        self.assertEqual(self.client.get(attachment.download_url).status_code, 200)
+
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(attachment.download_url).status_code, 404)
+        page = self.client.get(reverse("portal:ticket_detail", args=[self.ticket.pk]))
+        self.assertNotContains(page, "внутренний.txt")
+
+    def test_internal_comment_attachment_is_internal(self):
+        self.client.force_login(self.hr)
+        self.client.post(
+            reverse("portal:ticket_comment", args=[self.ticket.pk]),
+            {
+                "body": "внутренняя заметка",
+                "is_internal": "on",
+                "attachments": [self.make_file("заметка.txt", b"note")],
+            },
+        )
+        attachment = Attachment.objects.get()
+        self.assertTrue(attachment.is_internal)
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(attachment.download_url).status_code, 404)
+
+    def test_storage_url_is_forbidden(self):
+        self.create_ticket_with_file()
+        attachment = Attachment.objects.get()
+        with self.assertRaises(ValueError):
+            attachment.file.url
+
+    # -- уборка файлов ----------------------------------------------------
+    def test_file_deleted_with_ticket(self):
+        self.create_ticket_with_file()
+        ticket = ServiceTicket.objects.get(subject="Заявка с вложением")
+        self.assertEqual(len(self.disk_files()), 1)
+        ticket.delete()
+        self.assertEqual(len(self.disk_files()), 0)
+        self.assertEqual(Attachment.objects.count(), 0)
+
+    def test_file_deleted_with_attachment(self):
+        self.create_ticket_with_file()
+        attachment = Attachment.objects.get()
+        attachment.delete()
+        self.assertEqual(self.disk_files(), [])
+
+    def test_file_deleted_with_comment(self):
+        self.client.post(
+            reverse("portal:ticket_comment", args=[self.ticket.pk]),
+            {"body": "с файлом", "attachments": [self.make_file()]},
+        )
+        self.assertEqual(len(self.disk_files()), 1)
+        self.ticket.comments.all().delete()
+        self.assertEqual(self.disk_files(), [])
+
+    def test_ticket_list_shows_attachment_count(self):
+        self.create_ticket_with_file()
+        response = self.client.get(reverse("portal:tickets"))
+        self.assertContains(response, "i-paperclip")

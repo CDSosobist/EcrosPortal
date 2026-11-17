@@ -1,0 +1,25 @@
+{% load portal_extras %}
+{% comment %}Список вложений: используется в карточке заявки и в комментариях.{% endcomment %}
+{% if attachments %}
+<div class="attachment-list">
+  {% for attachment in attachments %}
+  <div class="attachment">
+    <span class="attachment__icon"><svg class="icon"><use href="#i-{{ attachment.icon }}"/></svg></span>
+    <div class="attachment__body">
+      <a class="attachment__name" href="{{ attachment.download_url }}">{{ attachment.original_name }}</a>
+      <div class="attachment__meta">
+        {{ attachment.size|filesizeformat }} · {{ attachment.created_at|ru_datetime }}
+        {% if attachment.uploaded_by %} · {{ attachment.uploaded_by.short_name }}{% endif %}
+        {% if attachment.is_internal %}
+        <span class="badge badge--warn" style="font-size:10px">видно только исполнителям</span>
+        {% endif %}
+      </div>
+    </div>
+    <a class="btn btn--sm btn--ghost" href="{{ attachment.download_url }}"
+       title="Скачать {{ attachment.original_name }}">
+      <svg class="icon"><use href="#i-download"/></svg>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

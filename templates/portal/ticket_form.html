@@ -17,7 +17,7 @@
 <div class="grid grid--sidebar">
   <div class="card">
     <div class="card__body">
-      <form method="post" novalidate>
+      <form method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
         <div class="form-grid">
@@ -36,6 +36,18 @@
           <div class="field field--full">
             <label class="label">Описание</label>
             {{ form.description }}{{ form.description.errors }}
+          </div>
+          <div class="field field--full">
+            <label class="label">Вложения</label>
+            <div class="file-drop">
+              {{ form.attachments }}
+              <div class="file-drop__list" data-file-list></div>
+            </div>
+            <div class="help">
+              До {{ max_files }} файлов, каждый не больше {{ max_mb }} МБ.
+              Список форматов: {{ allowed_extensions|join:", " }}.
+            </div>
+            {{ form.attachments.errors }}
           </div>
         </div>
         <div class="row">
@@ -56,7 +68,7 @@
         <ul class="prose" style="padding-left:18px;margin:0">
           <li>Что именно не работает и где (кабинет, компьютер, система).</li>
           <li>Когда началось и воспроизводится ли повторно.</li>
-          <li>Текст ошибки или скриншот через описание.</li>
+          <li>Текст ошибки — можно приложить скриншот или документ.</li>
           <li>Насколько срочно (влияет ли на работу отдела).</li>
         </ul>
       </div>

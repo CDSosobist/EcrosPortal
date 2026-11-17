@@ -108,6 +108,46 @@
         });
     });
 
+
+    // --- вложения: предпросмотр выбранных файлов и проверка лимитов ----------
+    function formatSize(bytes) {
+        if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1).replace(".", ",") + " МБ";
+        if (bytes >= 1024) return Math.round(bytes / 1024) + " КБ";
+        return bytes + " Б";
+    }
+
+    document.querySelectorAll("input[type=file][data-file-max-mb]").forEach((input) => {
+        const maxMb = parseFloat(input.getAttribute("data-file-max-mb") || "10");
+        const maxCount = parseInt(input.getAttribute("data-file-max-count") || "0", 10);
+        const list = input.closest(".file-drop")?.querySelector("[data-file-list]");
+        if (!list) return;
+
+        input.addEventListener("change", () => {
+            list.textContent = "";
+            const files = Array.from(input.files || []);
+            files.forEach((file) => {
+                const tooBig = file.size > maxMb * 1024 * 1024;
+                const row = document.createElement("div");
+                row.className = "file-drop__item" + (tooBig ? " file-drop__item--error" : "");
+                const name = document.createElement("span");
+                name.className = "file-drop__name";
+                name.textContent = file.name;
+                const size = document.createElement("span");
+                size.className = "file-drop__size";
+                size.textContent = tooBig ? formatSize(file.size) + " — больше " + maxMb + " МБ" : formatSize(file.size);
+                row.appendChild(name);
+                row.appendChild(size);
+                list.appendChild(row);
+            });
+            if (maxCount && files.length > maxCount) {
+                const row = document.createElement("div");
+                row.className = "file-drop__item file-drop__item--error";
+                row.textContent = "Выбрано " + files.length + " файлов, за раз можно не больше " + maxCount + ".";
+                list.appendChild(row);
+            }
+        });
+    });
+
     function getCookie(name) {
         const match = document.cookie.match(new RegExp("(^|;\\s*)" + name + "=([^;]*)"));
         return match ? decodeURIComponent(match[2]) : "";

@@ -29,7 +29,34 @@
       </div>
       <div class="card__body">
         <div class="prose">{{ ticket.description|markdown }}</div>
+        {% if attachments %}
+        <div class="divider"></div>
+        <div class="text-sm muted mb-1">Вложения к заявке</div>
+        {% include "portal/_attachments.html" with attachments=attachments %}
+        {% endif %}
       </div>
+      {% if can_attach %}
+      <div class="card__footer">
+        <form method="post" action="{% url 'portal:ticket_attach' ticket.pk %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="file-drop">
+            <input class="file-input" type="file" name="files" multiple
+                   data-file-max-mb="{{ max_mb }}" data-file-max-count="{{ max_files }}"
+                   aria-label="Приложить файлы к заявке">
+            <div class="file-drop__list" data-file-list></div>
+          </div>
+          <div class="row mt-1">
+            <button class="btn btn--primary btn--sm" type="submit">
+              <svg class="icon"><use href="#i-paperclip"/></svg> Приложить
+            </button>
+            {% if is_agent %}
+            <label class="checkbox"><input type="checkbox" name="is_internal" value="on"> Видно только исполнителям</label>
+            {% endif %}
+            <span class="muted text-sm">до {{ max_files }} файлов, каждый ≤ {{ max_mb }} МБ</span>
+          </div>
+        </form>
+      </div>
+      {% endif %}
     </div>
 
     <div class="card">
@@ -50,19 +77,30 @@
             {% if comment.is_internal %}<span class="badge badge--warn">внутренний</span>{% endif %}
           </div>
           <div class="text-sm" style="white-space:pre-wrap">{{ comment.body }}</div>
+          {% if comment.attachments.all %}
+          {% include "portal/_attachments.html" with attachments=comment.attachments.all %}
+          {% endif %}
         </div>
         {% empty %}
         <div class="empty" style="padding:22px 16px"><div class="text-sm">Комментариев пока нет</div></div>
         {% endfor %}
       </div>
       <div class="card__footer">
-        <form method="post" action="{% url 'portal:ticket_comment' ticket.pk %}">
+        <form method="post" action="{% url 'portal:ticket_comment' ticket.pk %}" enctype="multipart/form-data">
           {% csrf_token %}
           {{ comment_form.body }}
-          {% if is_agent %}
-          <label class="checkbox mt-1">{{ comment_form.is_internal }} Внутренний комментарий (не виден заявителю)</label>
-          {% endif %}
-          <button class="btn btn--primary btn--sm mt-2" type="submit"><svg class="icon"><use href="#i-send"/></svg> Отправить</button>
+          <div class="file-drop mt-1">
+            <input class="file-input" type="file" name="attachments" multiple
+                   data-file-max-mb="{{ max_mb }}" data-file-max-count="{{ max_files }}"
+                   aria-label="Приложить файлы к комментарию">
+            <div class="file-drop__list" data-file-list></div>
+          </div>
+          <div class="row mt-1">
+            <button class="btn btn--primary btn--sm" type="submit"><svg class="icon"><use href="#i-send"/></svg> Отправить</button>
+            {% if is_agent %}
+            <label class="checkbox">{{ comment_form.is_internal }} Внутренний комментарий (не виден заявителю)</label>
+            {% endif %}
+          </div>
         </form>
       </div>
     </div>

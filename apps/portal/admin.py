@@ -1,7 +1,10 @@
 """Админка контента портала."""
 from django.contrib import admin
+from django.template.defaultfilters import filesizeformat
+from django.utils.html import format_html
 
 from .models import (
+    Attachment,
     KbCategory,
     KnowledgeArticle,
     NewsCategory,
@@ -69,3 +72,37 @@ class NotificationAdmin(admin.ModelAdmin):
     list_display = ("created_at", "recipient", "kind", "title", "is_read")
     list_filter = ("kind", "is_read")
     search_fields = ("title", "recipient__last_name")
+
+
+@admin.register(Attachment)
+class AttachmentAdmin(admin.ModelAdmin):
+    """Вложения заявок: файл не редактируется, доступ — только через портал."""
+
+    list_display = (
+        "original_name",
+        "ticket",
+        "comment",
+        "size_display",
+        "is_internal",
+        "uploaded_by",
+        "created_at",
+        "download_link",
+    )
+    list_filter = ("is_internal", "content_type", "created_at")
+    search_fields = ("original_name", "ticket__subject", "ticket__description")
+    autocomplete_fields = ("ticket", "uploaded_by")
+    date_hierarchy = "created_at"
+    exclude = ("file",)
+    readonly_fields = ("original_name", "content_type", "size", "created_at", "download_link")
+
+    @admin.display(description="Размер", ordering="size")
+    def size_display(self, obj: Attachment) -> str:
+        return filesizeformat(obj.size)
+
+    @admin.display(description="Файл")
+    def download_link(self, obj: Attachment) -> str:
+        if not obj.pk:
+            return "—"
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener">Скачать</a>', obj.download_url
+        )
